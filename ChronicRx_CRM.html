@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChronicRx — Prescription Follow-up System</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:      #0f1f3d;
+    --navy2:     #162848;
+    --teal:      #0a8f7a;
+    --teal2:     #0cb898;
+    --gold:      #e8a020;
+    --gold2:     #f5c842;
+    --danger:    #d94040;
+    --warn:      #e8720a;
+    --ok:        #14a86e;
+    --bg:        #f0f3f8;
+    --card:      #ffffff;
+    --border:    #dde3ef;
+    --txt:       #0f1f3d;
+    --txt2:      #4a5878;
+    --txt3:      #8a96b0;
+    --shadow:    0 2px 16px rgba(15,31,61,0.10);
+    --shadow2:   0 4px 32px rgba(15,31,61,0.14);
+    --radius:    14px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--txt); min-height: 100vh; }
+
+  /* ── TOP BAR ─────────────────────────────────── */
+  .topbar {
+    background: var(--navy);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px; height: 58px; position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.25);
+  }
+  .logo { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 20px; color: #fff; letter-spacing: -0.5px; }
+  .logo span { color: var(--teal2); }
+  .topbar-right { display: flex; gap: 10px; align-items: center; }
+  .badge-count {
+    background: var(--danger); color: #fff; font-size: 11px; font-weight: 600;
+    border-radius: 20px; padding: 2px 8px; font-family: 'Montserrat', sans-serif;
+  }
+  .btn-top {
+    background: var(--teal); color: #fff; border: none; border-radius: var(--radius-sm);
+    padding: 7px 16px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: background .2s; display: flex; align-items: center; gap: 6px;
+  }
+  .btn-top:hover { background: var(--teal2); }
+
+  /* ── LAYOUT ──────────────────────────────────── */
+  .shell { display: flex; height: calc(100vh - 58px); overflow: hidden; }
+  .sidebar {
+    width: 230px; background: var(--navy2); flex-shrink: 0;
+    display: flex; flex-direction: column; padding: 18px 0; overflow-y: auto;
+  }
+  .nav-section { font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 700;
+    color: var(--txt3); letter-spacing: .12em; text-transform: uppercase;
+    padding: 14px 20px 6px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 20px;
+    color: #a8b4cc; font-size: 14px; cursor: pointer; transition: all .15s;
+    border-left: 3px solid transparent; font-weight: 400;
+  }
+  .nav-item:hover { color: #fff; background: rgba(255,255,255,.05); }
+  .nav-item.active { color: var(--teal2); border-left-color: var(--teal2); background: rgba(10,184,152,.08); font-weight: 500; }
+  .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+
+  .main { flex: 1; overflow-y: auto; padding: 24px 28px; }
+
+  /* ── PAGE HEADER ─────────────────────────────── */
+  .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; }
+  .page-title { font-family: 'Montserrat', sans-serif; font-size: 24px; font-weight: 800; color: var(--navy); }
+  .page-sub { color: var(--txt2); font-size: 13.5px; margin-top: 3px; }
+
+  /* ── KPI CARDS ───────────────────────────────── */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+  .kpi {
+    background: var(--card); border-radius: var(--radius); padding: 18px 20px;
+    box-shadow: var(--shadow); border: 1px solid var(--border); position: relative; overflow: hidden;
+  }
+  .kpi::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
+  .kpi.overdue::before { background: var(--danger); }
+  .kpi.due-today::before { background: var(--warn); }
+  .kpi.upcoming::before { background: var(--gold); }
+  .kpi.partial::before { background: var(--teal2); }
+  .kpi-val { font-family: 'Montserrat', sans-serif; font-size: 32px; font-weight: 800; line-height: 1; }
+  .kpi.overdue .kpi-val { color: var(--danger); }
+  .kpi.due-today .kpi-val { color: var(--warn); }
+  .kpi.upcoming .kpi-val { color: var(--gold); }
+  .kpi.partial .kpi-val { color: var(--teal); }
+  .kpi-lbl { font-size: 12px; color: var(--txt2); margin-top: 6px; font-weight: 500; }
+  .kpi-sub { font-size: 11px; color: var(--txt3); margin-top: 3px; }
+
+  /* ── TOOLBAR ─────────────────────────────────── */
+  .toolbar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+  .search-box {
+    flex: 1; min-width: 220px; background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 9px 14px; font-size: 14px; color: var(--txt);
+    font-family: 'DM Sans', sans-serif; outline: none;
+  }
+  .search-box:focus { border-color: var(--teal); }
+  .filter-btn {
+    padding: 9px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--card); font-size: 12.5px; font-family: 'Montserrat', sans-serif; font-weight: 600;
+    cursor: pointer; color: var(--txt2); transition: all .15s; white-space: nowrap;
+  }
+  .filter-btn:hover, .filter-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .filter-btn.danger.active { background: var(--danger); border-color: var(--danger); color: #fff; }
+  .filter-btn.warn.active { background: var(--warn); border-color: var(--warn); color: #fff; }
+  .filter-btn.gold.active { background: var(--gold); border-color: var(--gold); color: #fff; }
+  .filter-btn.teal.active { background: var(--teal); border-color: var(--teal); color: #fff; }
+
+  /* ── TABLE ───────────────────────────────────── */
+  .table-wrap { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--border); overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  thead th {
+    background: #f7f9fc; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .08em; color: var(--txt2);
+    padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody tr { border-bottom: 1px solid #f0f3f8; transition: background .12s; cursor: pointer; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #f6f9ff; }
+  td { padding: 12px 14px; vertical-align: middle; }
+
+  .patient-name { font-weight: 500; color: var(--navy); font-size: 14px; }
+  .patient-id { font-size: 11px; color: var(--txt3); margin-top: 1px; }
+  .phone { color: var(--txt2); font-size: 13px; }
+
+  /* status pills */
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    border-radius: 20px; padding: 3px 10px; font-size: 11.5px; font-weight: 600;
+    font-family: 'Montserrat', sans-serif; white-space: nowrap;
+  }
+  .pill-overdue { background: #fde8e8; color: var(--danger); }
+  .pill-today   { background: #fff0e0; color: var(--warn); }
+  .pill-soon    { background: #fff8e0; color: #b87a00; }
+  .pill-ok      { background: #e0f7ef; color: var(--ok); }
+  .pill-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* Rx type */
+  .rx-full    { background: #e8f5ff; color: #1a6fa8; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+  .rx-partial { background: #fff0e8; color: var(--warn); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+  .rx-none    { background: #f3e8ff; color: #7c3aed; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+
+  /* rev estimate */
+  .rev { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 14px; }
+  .rev-up { color: var(--teal); }
+  .rev-norm { color: var(--txt2); }
+  .rev-upsell { color: var(--gold); font-size: 11px; display: block; margin-top: 1px; }
+
+  /* action buttons */
+  .act-btn {
+    padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border);
+    background: transparent; font-size: 11.5px; font-family: 'Montserrat', sans-serif; font-weight: 600;
+    cursor: pointer; transition: all .15s; color: var(--txt2); white-space: nowrap;
+  }
+  .act-btn:hover { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .act-btn.call { background: var(--teal); color: #fff; border-color: var(--teal); }
+  .act-btn.call:hover { background: var(--teal2); border-color: var(--teal2); }
+  .act-btn.done { background: var(--ok); color: #fff; border-color: var(--ok); }
+  .btn-row { display: flex; gap: 5px; }
+
+  /* days badge */
+  .days-badge {
+    font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 800;
+    min-width: 40px; text-align: center;
+  }
+  .days-overdue { color: var(--danger); }
+  .days-today   { color: var(--warn); }
+  .days-soon    { color: #b87a00; }
+  .days-ok      { color: var(--ok); }
+
+  /* ── MODAL ───────────────────────────────────── */
+  .modal-bg {
+    display: none; position: fixed; inset: 0; background: rgba(10,20,40,.55);
+    z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(3px);
+  }
+  .modal-bg.open { display: flex; }
+  .modal {
+    background: var(--card); border-radius: 18px; width: 720px; max-width: 96vw;
+    max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.3);
+    padding: 0; animation: slideUp .25s ease;
+  }
+  @keyframes slideUp { from { opacity:0; transform: translateY(24px); } to { opacity:1; transform: translateY(0); } }
+  .modal-header {
+    background: var(--navy); padding: 22px 28px; border-radius: 18px 18px 0 0;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .modal-title { font-family: 'Montserrat', sans-serif; font-size: 18px; font-weight: 800; color: #fff; }
+  .modal-sub { font-size: 13px; color: #a8b4cc; margin-top: 2px; }
+  .modal-close { background: none; border: none; color: #a8b4cc; font-size: 22px; cursor: pointer; line-height: 1; }
+  .modal-close:hover { color: #fff; }
+  .modal-body { padding: 24px 28px; }
+
+  /* form */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+  .form-full { grid-column: 1 / -1; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-label { font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--txt2); }
+  .form-input, .form-select, .form-textarea {
+    background: #f7f9fc; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 9px 12px; font-size: 14px; color: var(--txt); font-family: 'DM Sans', sans-serif;
+    outline: none; transition: border .15s;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--teal); background: #fff; }
+  .form-textarea { resize: vertical; min-height: 80px; }
+  .form-hint { font-size: 11px; color: var(--txt3); margin-top: 2px; }
+
+  /* section divider */
+  .form-section { margin-top: 20px; margin-bottom: 10px; }
+  .form-section-title {
+    font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--teal); display: flex; align-items: center; gap: 8px;
+  }
+  .form-section-title::after { content:''; flex:1; height:1px; background: var(--border); }
+
+  /* upload area */
+  .upload-area {
+    border: 2px dashed var(--border); border-radius: var(--radius-sm); padding: 18px;
+    text-align: center; cursor: pointer; transition: all .15s; background: #f7f9fc;
+  }
+  .upload-area:hover { border-color: var(--teal); background: #f0fdf9; }
+  .upload-icon { font-size: 28px; margin-bottom: 6px; }
+  .upload-text { font-size: 13px; color: var(--txt2); }
+  .upload-sub { font-size: 11px; color: var(--txt3); margin-top: 3px; }
+  .file-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .file-item {
+    display: flex; align-items: center; gap: 8px; background: #f0f3f8;
+    border-radius: 6px; padding: 7px 10px; font-size: 12.5px;
+  }
+  .file-name { flex: 1; color: var(--txt); font-weight: 500; }
+  .file-remove { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 16px; line-height: 1; }
+
+  /* medicines list */
+  .med-row { display: grid; grid-template-columns: 1fr 90px 90px auto; gap: 8px; align-items: center; }
+  .med-row + .med-row { margin-top: 8px; }
+  .btn-add-med {
+    margin-top: 10px; padding: 7px 14px; border-radius: var(--radius-sm);
+    border: 1px dashed var(--teal); background: rgba(10,143,122,.06);
+    color: var(--teal); font-size: 13px; font-family: 'Montserrat', sans-serif; font-weight: 600;
+    cursor: pointer; width: 100%; transition: all .15s;
+  }
+  .btn-add-med:hover { background: rgba(10,143,122,.12); }
+  .btn-del-med { background: none; border: none; color: var(--danger); font-size: 18px; cursor: pointer; line-height: 1; padding: 0 4px; }
+
+  /* call log */
+  .call-log { display: flex; flex-direction: column; gap: 8px; }
+  .call-entry {
+    display: flex; gap: 10px; padding: 10px 12px; background: #f7f9fc;
+    border-radius: var(--radius-sm); border-left: 3px solid var(--teal2);
+  }
+  .call-date { font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700; color: var(--txt2); white-space: nowrap; }
+  .call-text { font-size: 13px; color: var(--txt); }
+  .call-outcome-won  { border-left-color: var(--ok); }
+  .call-outcome-miss { border-left-color: var(--warn); }
+  .call-outcome-no   { border-left-color: var(--danger); }
+
+  /* modal footer */
+  .modal-footer {
+    display: flex; gap: 10px; justify-content: flex-end; padding: 16px 28px;
+    border-top: 1px solid var(--border); background: #f7f9fc; border-radius: 0 0 18px 18px;
+  }
+  .btn-cancel { padding: 9px 20px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: #fff; color: var(--txt2); font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn-save   { padding: 9px 22px; border-radius: var(--radius-sm); border: none; background: var(--navy); color: #fff; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: background .15s; }
+  .btn-save:hover { background: var(--teal); }
+  .btn-primary { padding: 9px 22px; border-radius: var(--radius-sm); border: none; background: var(--teal); color: #fff; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: background .15s; }
+  .btn-primary:hover { background: var(--teal2); }
+
+  /* ── CALL MODAL ──────────────────────────────── */
+  .outcome-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+  .outcome-opt {
+    border: 2px solid var(--border); border-radius: var(--radius-sm); padding: 12px;
+    text-align: center; cursor: pointer; transition: all .15s;
+  }
+  .outcome-opt:hover { border-color: var(--teal); }
+  .outcome-opt.selected-won  { border-color: var(--ok);   background: #e0f7ef; }
+  .outcome-opt.selected-miss { border-color: var(--warn); background: #fff0e0; }
+  .outcome-opt.selected-no   { border-color: var(--danger); background: #fde8e8; }
+  .outcome-icon { font-size: 24px; }
+  .outcome-label { font-size: 12px; font-weight: 600; margin-top: 4px; font-family: 'Montserrat', sans-serif; }
+
+  /* ── TOAST ───────────────────────────────────── */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; background: var(--navy);
+    color: #fff; border-radius: 10px; padding: 12px 20px; font-size: 14px; font-weight: 500;
+    box-shadow: var(--shadow2); z-index: 999; opacity: 0; transform: translateY(10px);
+    transition: all .3s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.success { background: var(--ok); }
+  .toast.warn { background: var(--warn); }
+
+  /* ── EMPTY STATE ─────────────────────────────── */
+  .empty { text-align: center; padding: 48px; color: var(--txt3); }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-text { font-size: 15px; }
+
+  /* ── DETAIL PANEL (right slide) ──────────────── */
+  .detail-panel {
+    position: fixed; top: 58px; right: -440px; width: 440px; bottom: 0;
+    background: #fff; box-shadow: -4px 0 30px rgba(0,0,0,.15);
+    transition: right .3s cubic-bezier(.4,0,.2,1); z-index: 150; overflow-y: auto;
+  }
+  .detail-panel.open { right: 0; }
+  .dp-header { background: var(--navy); padding: 20px 22px; }
+  .dp-name { font-family: 'Montserrat', sans-serif; font-size: 18px; font-weight: 800; color: #fff; }
+  .dp-meta { font-size: 12.5px; color: #a8b4cc; margin-top: 4px; }
+  .dp-close { position: absolute; top: 16px; right: 18px; background: none; border: none; color: #a8b4cc; font-size: 22px; cursor: pointer; }
+  .dp-close:hover { color: #fff; }
+  .dp-section { padding: 16px 22px; border-bottom: 1px solid var(--border); }
+  .dp-section-title { font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--txt3); margin-bottom: 10px; }
+  .dp-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13.5px; }
+  .dp-key { color: var(--txt2); }
+  .dp-val { font-weight: 500; color: var(--txt); }
+  .dp-meds { display: flex; flex-direction: column; gap: 6px; }
+  .dp-med { display: flex; justify-content: space-between; align-items: center; background: #f7f9fc; border-radius: 6px; padding: 8px 10px; font-size: 13px; }
+  .dp-med-name { font-weight: 500; }
+  .dp-med-dispensed { font-size: 11px; color: var(--txt3); }
+  .dp-med-src { font-size: 11px; font-weight: 600; }
+  .src-us { color: var(--teal); }
+  .src-hosp { color: #7c3aed; }
+  .src-partial { color: var(--warn); }
+  .dp-files { display: flex; flex-direction: column; gap: 6px; }
+  .dp-file { display: flex; align-items: center; gap: 8px; background: #f0f3f8; border-radius: 6px; padding: 8px 10px; font-size: 13px; cursor: pointer; }
+  .dp-file:hover { background: #e8eef8; }
+  .dp-file-icon { font-size: 18px; }
+  .dp-logs { display: flex; flex-direction: column; gap: 8px; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #cdd5e0; border-radius: 3px; }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .kpi-row { grid-template-columns: repeat(2,1fr); }
+    .sidebar { display: none; }
+    .form-grid { grid-template-columns: 1fr; }
+    .form-grid.three { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo">Chronic<span>Rx</span> <span style="font-size:12px;color:#a8b4cc;font-weight:400;font-family:'DM Sans'"> — Prescription Follow-up System</span></div>
+  <div style="font-size:11px;color:#6a7fa8;font-family:'DM Sans';letter-spacing:0.02em">Built by <span style="color:var(--teal2);font-weight:600">Dr. Mohamed Baydoun</span></div>
+  <div class="topbar-right">
+    <span id="overdueTopBadge" class="badge-count">0 overdue</span>
+    <button class="btn-top" onclick="openAddModal()">＋ New Patient</button>
+  </div>
+</div>
+
+<div class="shell">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="nav-section">Worklist</div>
+    <div class="nav-item active" onclick="setFilter('all')"><span class="nav-icon">🗂</span> All Patients</div>
+    <div class="nav-item" onclick="setFilter('overdue')"><span class="nav-icon">🔴</span> Overdue</div>
+    <div class="nav-item" onclick="setFilter('today')"><span class="nav-icon">🟠</span> Due Today</div>
+    <div class="nav-item" onclick="setFilter('soon')"><span class="nav-icon">🟡</span> Due This Week</div>
+    <div class="nav-section">Opportunity</div>
+    <div class="nav-item" onclick="setFilter('partial')"><span class="nav-icon">💰</span> Partial Rx Upsell</div>
+    <div class="nav-section">Tools</div>
+    <div class="nav-item" onclick="showView('stats')"><span class="nav-icon">📊</span> Revenue Forecast</div>
+    <div class="nav-item" onclick="showView('called')"><span class="nav-icon">✅</span> Called Today</div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main" id="mainArea">
+    <div class="page-header">
+      <div>
+        <div class="page-title" id="pageTitle">All Patients</div>
+        <div class="page-sub" id="pageSub">Chronic prescription follow-up tracker — <span id="todayDate"></span></div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn-top" style="background:var(--gold);color:var(--navy)" onclick="exportCSV()">⬇ Export</button>
+      </div>
+    </div>
+
+    <!-- KPI row -->
+    <div class="kpi-row">
+      <div class="kpi overdue">
+        <div class="kpi-val" id="kpiOverdue">0</div>
+        <div class="kpi-lbl">Overdue Refills</div>
+        <div class="kpi-sub">Need immediate call</div>
+      </div>
+      <div class="kpi due-today">
+        <div class="kpi-val" id="kpiToday">0</div>
+        <div class="kpi-lbl">Due Today</div>
+        <div class="kpi-sub">Call before end of shift</div>
+      </div>
+      <div class="kpi upcoming">
+        <div class="kpi-val" id="kpiSoon">0</div>
+        <div class="kpi-lbl">Due This Week</div>
+        <div class="kpi-sub">Schedule proactive call</div>
+      </div>
+      <div class="kpi partial">
+        <div class="kpi-val" id="kpiPartial">0</div>
+        <div class="kpi-lbl">Partial Rx — Upsell</div>
+        <div class="kpi-sub" id="kpiPartialRev">SAR 0 potential uplift</div>
+      </div>
+    </div>
+
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+      <input class="search-box" id="searchBox" placeholder="🔍  Search patient name, ID, phone…" oninput="renderTable()">
+      <button class="filter-btn active" id="fb-all" onclick="setFilter('all')">All</button>
+      <button class="filter-btn danger" id="fb-overdue" onclick="setFilter('overdue')">🔴 Overdue</button>
+      <button class="filter-btn warn" id="fb-today" onclick="setFilter('today')">🟠 Today</button>
+      <button class="filter-btn gold" id="fb-soon" onclick="setFilter('soon')">🟡 This Week</button>
+      <button class="filter-btn teal" id="fb-partial" onclick="setFilter('partial')">💰 Partial Rx</button>
+    </div>
+
+    <!-- TABLE -->
+    <div class="table-wrap" id="tableWrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Patient</th>
+            <th>Phone</th>
+            <th>Rx Type</th>
+            <th>Last Dispense</th>
+            <th>Due Date</th>
+            <th>Status</th>
+            <th>Est. Revenue</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="patientTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────── -->
+<!-- ADD / EDIT PATIENT MODAL -->
+<div class="modal-bg" id="addModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modalTitle">Register New Patient</div>
+        <div class="modal-sub">Chronic prescription follow-up record</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('addModal')">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="form-section"><div class="form-section-title">Patient Information</div></div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Full Name *</label>
+          <input class="form-input" id="f_name" placeholder="e.g. Ahmed Hassan">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Patient ID / NHS No.</label>
+          <input class="form-input" id="f_id" placeholder="e.g. NHS-00123">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone Number *</label>
+          <input class="form-input" id="f_phone" placeholder="e.g. 07700 900123" type="tel">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Insurance / Plan</label>
+          <input class="form-input" id="f_insurance" placeholder="e.g. Bupa Chronic Care">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Chronic Condition</label>
+          <input class="form-input" id="f_condition" placeholder="e.g. Diabetes, Hypertension">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hospital / Clinic</label>
+          <input class="form-input" id="f_hospital" placeholder="e.g. Royal London Hospital">
+        </div>
+      </div>
+
+      <div class="form-section"><div class="form-section-title">Last Dispense & Prescription</div></div>
+      <div class="form-grid three">
+        <div class="form-group">
+          <label class="form-label">Last Dispense Date *</label>
+          <input class="form-input" id="f_lastDate" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Refill Cycle (days) *</label>
+          <select class="form-select" id="f_cycle">
+            <option value="30">30 days</option>
+            <option value="60">60 days</option>
+            <option value="90" selected>90 days</option>
+            <option value="180">180 days (6 mo)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Rx Dispense Type *</label>
+          <select class="form-select" id="f_rxtype">
+            <option value="full">✅ Full Rx — from us</option>
+            <option value="partial">⚠️ Partial Rx — we gave part</option>
+            <option value="none">🏥 Hospital gave all — Rx copy held</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-section"><div class="form-section-title">Medicines on Prescription</div></div>
+      <div id="medRows"></div>
+      <button class="btn-add-med" onclick="addMedRow()">＋ Add Medicine</button>
+
+      <div class="form-section"><div class="form-section-title">Revenue Estimate</div></div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Last Dispense Revenue (SAR )</label>
+          <input class="form-input" id="f_lastRev" type="number" placeholder="e.g. 85.50" oninput="calcRevEst()">
+          <div class="form-hint">What we actually dispensed last time</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Full Prescription Value (SAR )</label>
+          <input class="form-input" id="f_fullRev" type="number" placeholder="e.g. 145.00" oninput="calcRevEst()">
+          <div class="form-hint">Total value if we dispense everything</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estimated Next Revenue (SAR )</label>
+          <input class="form-input" id="f_estRev" readonly style="background:#f0fdf9;font-weight:600;color:var(--teal)">
+          <div class="form-hint">Auto-calculated from above</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Upsell Opportunity (SAR )</label>
+          <input class="form-input" id="f_upsell" readonly style="background:#fff8e0;font-weight:600;color:var(--gold)">
+          <div class="form-hint">Extra revenue if partial → full Rx</div>
+        </div>
+      </div>
+
+      <div class="form-section"><div class="form-section-title">Documents & Prescription Uploads</div></div>
+      <div class="upload-area" onclick="document.getElementById('fileInput').click()" id="uploadArea">
+        <div class="upload-icon">📎</div>
+        <div class="upload-text">Click to upload prescription, insurance card, or referral letter</div>
+        <div class="upload-sub">PDF, JPG, PNG — max 10MB each</div>
+      </div>
+      <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="handleFiles(this.files)">
+      <div class="file-list" id="fileList"></div>
+
+      <div class="form-section"><div class="form-section-title">Notes</div></div>
+      <div class="form-group">
+        <textarea class="form-textarea" id="f_notes" placeholder="Any relevant notes — allergies, preferences, specific medicines to request…" style="min-height:70px"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('addModal')">Cancel</button>
+      <button class="btn-save" onclick="savePatient()">💾 Save Record</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────── -->
+<!-- CALL LOG MODAL -->
+<div class="modal-bg" id="callModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">📞 Log Follow-up Call</div>
+        <div class="modal-sub" id="callModalSub">Patient name</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('callModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Call Outcome</label>
+        <div class="outcome-grid">
+          <div class="outcome-opt" id="out-won" onclick="selectOutcome('won')">
+            <div class="outcome-icon">✅</div>
+            <div class="outcome-label" style="color:var(--ok)">Patient Coming</div>
+          </div>
+          <div class="outcome-opt" id="out-miss" onclick="selectOutcome('miss')">
+            <div class="outcome-icon">📅</div>
+            <div class="outcome-label" style="color:var(--warn)">Rescheduled</div>
+          </div>
+          <div class="outcome-opt" id="out-no" onclick="selectOutcome('no')">
+            <div class="outcome-icon">❌</div>
+            <div class="outcome-label" style="color:var(--danger)">No Answer / Lost</div>
+          </div>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Call Note</label>
+        <textarea class="form-textarea" id="callNote" placeholder="e.g. Patient confirmed coming Thursday. Requested all medicines on prescription…" style="min-height:90px"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Next Follow-up Date</label>
+        <input class="form-input" id="callNextDate" type="date">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('callModal')">Cancel</button>
+      <button class="btn-primary" onclick="saveCallLog()">Log Call</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────── -->
+<!-- DETAIL PANEL -->
+<div class="detail-panel" id="detailPanel">
+  <div class="dp-header" style="position:relative">
+    <div class="dp-name" id="dp_name">—</div>
+    <div class="dp-meta" id="dp_meta">—</div>
+    <button class="dp-close" onclick="closeDetail()">✕</button>
+  </div>
+  <div class="dp-section">
+    <div class="dp-section-title">Refill Summary</div>
+    <div class="dp-row"><span class="dp-key">Due Date</span><span class="dp-val" id="dp_due">—</span></div>
+    <div class="dp-row"><span class="dp-key">Cycle</span><span class="dp-val" id="dp_cycle">—</span></div>
+    <div class="dp-row"><span class="dp-key">Rx Type</span><span class="dp-val" id="dp_rxtype">—</span></div>
+    <div class="dp-row"><span class="dp-key">Insurance</span><span class="dp-val" id="dp_insurance">—</span></div>
+    <div class="dp-row"><span class="dp-key">Condition</span><span class="dp-val" id="dp_condition">—</span></div>
+  </div>
+  <div class="dp-section">
+    <div class="dp-section-title">Revenue</div>
+    <div class="dp-row"><span class="dp-key">Last Dispense</span><span class="dp-val" id="dp_lastrev">—</span></div>
+    <div class="dp-row"><span class="dp-key">Est. Next Revenue</span><span class="dp-val" id="dp_estrev" style="color:var(--teal);font-weight:700">—</span></div>
+    <div class="dp-row"><span class="dp-key">Upsell Opportunity</span><span class="dp-val" id="dp_upsell" style="color:var(--gold);font-weight:700">—</span></div>
+  </div>
+  <div class="dp-section">
+    <div class="dp-section-title">Medicines</div>
+    <div class="dp-meds" id="dp_meds"></div>
+  </div>
+  <div class="dp-section">
+    <div class="dp-section-title">Documents</div>
+    <div class="dp-files" id="dp_files"></div>
+  </div>
+  <div class="dp-section">
+    <div class="dp-section-title">Call History</div>
+    <div class="dp-logs call-log" id="dp_logs"></div>
+  </div>
+  <div style="padding:16px 22px;display:flex;gap:8px">
+    <button class="act-btn call" style="flex:1;padding:10px" onclick="openCallFromDetail()">📞 Log Call</button>
+    <button class="act-btn" style="flex:1;padding:10px" onclick="editFromDetail()">✏️ Edit</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- FOOTER -->
+<div style="position:fixed;bottom:0;left:230px;right:0;height:28px;background:var(--navy);display:flex;align-items:center;justify-content:center;gap:6px;z-index:50;border-top:1px solid rgba(255,255,255,0.06)">
+  <span style="font-size:11px;color:#4a5878;font-family:'DM Sans'">ChronicRx Prescription Follow-up System</span>
+  <span style="color:#2a3a5a;font-size:11px">·</span>
+  <span style="font-size:11px;color:#4a5878;font-family:'DM Sans'">Designed & created by</span>
+  <span style="font-size:11px;font-weight:700;color:var(--teal2);font-family:'Montserrat',sans-serif;letter-spacing:0.02em">Dr. Mohamed Baydoun</span>
+</div>
+
+<script>
+// ─────────────────────────────────────────
+// DATA STORE
+// ─────────────────────────────────────────
+let patients = JSON.parse(localStorage.getItem('chronicrx_patients') || '[]');
+let uploadedFiles = {}; // patientId -> [{name, dataUrl}]
+let tempFiles = [];     // during modal editing
+let currentEditId = null;
+let callTargetId = null;
+let currentFilter = 'all';
+let selectedOutcome = null;
+
+// Seed with demo data if empty
+if (!patients.length) {
+  const today = new Date();
+  const d = (offset) => { const dt = new Date(today); dt.setDate(dt.getDate() + offset); return dt.toISOString().split('T')[0]; };
+  patients = [
+    { id:'P001', name:'Ahmed Al-Rashid', phone:'07700 900101', insurance:'Bupa Chronic Care', condition:'Diabetes T2 + Hypertension', hospital:'Royal London Hospital', lastDate: d(-92), cycle:90, rxtype:'partial', lastRev:68, fullRev:145, estRev:145, upsell:77, meds:[{name:'Metformin 1000mg',qty:'90 tabs',src:'us'},{name:'Amlodipine 10mg',qty:'90 tabs',src:'hospital'},{name:'Atorvastatin 40mg',qty:'90 tabs',src:'hospital'}], notes:'Very cooperative. Always asks for all meds if we call.', logs:[{date:d(-10),outcome:'won',note:'Confirmed coming next week. Requesting full Rx.',next:d(-3)}] },
+    { id:'P002', name:'Fatima Khalil',   phone:'07700 900202', insurance:'AXA Health',        condition:'Asthma + GERD',            hospital:'Barts Hospital',           lastDate: d(-88), cycle:90, rxtype:'full',    lastRev:112,fullRev:112,estRev:112,upsell:0,  meds:[{name:'Seretide 250 Inhaler',qty:'2 units',src:'us'},{name:'Omeprazole 20mg',qty:'90 tabs',src:'us'}], notes:'Reliable refiller.', logs:[] },
+    { id:'P003', name:'Mohamed Saeed',   phone:'07700 900303', insurance:'NHS Enhanced',      condition:'Hypertension + CKD',       hospital:'University College Hospital',lastDate: d(-30), cycle:90, rxtype:'partial', lastRev:45, fullRev:180, estRev:180,upsell:135,meds:[{name:'Losartan 100mg',qty:'90 tabs',src:'us'},{name:'Furosemide 40mg',qty:'90 tabs',src:'hospital'},{name:'Allopurinol 300mg',qty:'90 tabs',src:'hospital'},{name:'Calcium + Vit D',qty:'90 tabs',src:'hospital'}], notes:'Hospital dispenses diuretics. We can request them all.', logs:[] },
+    { id:'P004', name:'Sarah Johnson',   phone:'07700 900404', insurance:'Vitality Health',   condition:'Hypothyroidism',           hospital:'Chelsea & Westminster',     lastDate: d(-60), cycle:60, rxtype:'full',    lastRev:28, fullRev:28, estRev:28, upsell:0,  meds:[{name:'Levothyroxine 100mcg',qty:'60 tabs',src:'us'}], notes:'', logs:[] },
+    { id:'P005', name:'Omar Farouq',     phone:'07700 900505', insurance:'Cigna',             condition:'Diabetes T1 + Neuropathy', hospital:'Kings College Hospital',    lastDate: d(-5),  cycle:90, rxtype:'none',   lastRev:0,  fullRev:220,estRev:220, upsell:220,meds:[{name:'Insulin Lantus',qty:'5 pens',src:'hospital'},{name:'Insulin NovoRapid',qty:'5 pens',src:'hospital'},{name:'Pregabalin 150mg',qty:'90 tabs',src:'hospital'}], notes:'Hospital dispenses everything. Has a copy. Worth calling when due.', logs:[] },
+  ];
+  patients.forEach(p => { uploadedFiles[p.id] = []; });
+  save();
+}
+
+function save() {
+  localStorage.setItem('chronicrx_patients', JSON.stringify(patients));
+}
+
+// ─────────────────────────────────────────
+// DATE HELPERS
+// ─────────────────────────────────────────
+function today() { return new Date().toISOString().split('T')[0]; }
+function daysUntil(dateStr) {
+  const due = new Date(dateStr); due.setHours(0,0,0,0);
+  const now = new Date(); now.setHours(0,0,0,0);
+  return Math.round((due - now) / 86400000);
+}
+function dueDate(p) {
+  const d = new Date(p.lastDate); d.setDate(d.getDate() + parseInt(p.cycle)); return d.toISOString().split('T')[0];
+}
+function formatDate(str) {
+  if (!str) return '—';
+  return new Date(str).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+}
+
+// ─────────────────────────────────────────
+// STATUS LOGIC
+// ─────────────────────────────────────────
+function getStatus(p) {
+  const days = daysUntil(dueDate(p));
+  if (days < 0)  return { label:'Overdue', cls:'pill-overdue', dayCls:'days-overdue', type:'overdue' };
+  if (days === 0) return { label:'Due Today', cls:'pill-today', dayCls:'days-today', type:'today' };
+  if (days <= 7)  return { label:'Due Soon', cls:'pill-soon', dayCls:'days-soon', type:'soon' };
+  return { label:'On Track', cls:'pill-ok', dayCls:'days-ok', type:'ok' };
+}
+
+// ─────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────
+function renderAll() {
+  renderKPIs();
+  renderTable();
+  renderTopBadge();
+  document.getElementById('todayDate').textContent = new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+
+function renderKPIs() {
+  let overdue=0, todayCount=0, soon=0, partial=0, partialRev=0;
+  patients.forEach(p => {
+    const s = getStatus(p);
+    if (s.type === 'overdue') overdue++;
+    if (s.type === 'today')   todayCount++;
+    if (s.type === 'soon')    soon++;
+    if (p.rxtype !== 'full' && p.upsell > 0) { partial++; partialRev += parseFloat(p.upsell||0); }
+  });
+  document.getElementById('kpiOverdue').textContent = overdue;
+  document.getElementById('kpiToday').textContent   = todayCount;
+  document.getElementById('kpiSoon').textContent    = soon;
+  document.getElementById('kpiPartial').textContent = partial;
+  document.getElementById('kpiPartialRev').textContent = `SAR ${partialRev.toFixed(0)} potential uplift`;
+}
+
+function renderTopBadge() {
+  const n = patients.filter(p => ['overdue','today'].includes(getStatus(p).type)).length;
+  document.getElementById('overdueTopBadge').textContent = n > 0 ? `${n} need call` : 'All clear';
+  document.getElementById('overdueTopBadge').style.background = n > 0 ? 'var(--danger)' : 'var(--ok)';
+}
+
+function renderTable() {
+  const search = document.getElementById('searchBox').value.toLowerCase();
+  let filtered = patients.filter(p => {
+    const q = (p.name+p.phone+p.id+p.condition+p.insurance).toLowerCase();
+    if (!q.includes(search)) return false;
+    const s = getStatus(p).type;
+    if (currentFilter === 'overdue') return s === 'overdue';
+    if (currentFilter === 'today')   return s === 'today';
+    if (currentFilter === 'soon')    return s === 'soon';
+    if (currentFilter === 'partial') return p.rxtype !== 'full' && p.upsell > 0;
+    if (currentFilter === 'called')  return (p.logs||[]).some(l => l.date === today());
+    return true;
+  });
+  // Sort: overdue first, then today, then soon, then ok
+  const order = { overdue:0, today:1, soon:2, ok:3 };
+  filtered.sort((a,b) => order[getStatus(a).type] - order[getStatus(b).type]);
+
+  const tbody = document.getElementById('patientTbody');
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No patients match this filter</div></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(p => {
+    const s = getStatus(p);
+    const due = dueDate(p);
+    const days = daysUntil(due);
+    const daysLabel = days < 0 ? `${Math.abs(days)}d overdue` : days === 0 ? 'Today' : `in ${days}d`;
+    const rxLabel = p.rxtype === 'full' ? `<span class="rx-full">Full Rx ✅</span>` :
+                    p.rxtype === 'partial' ? `<span class="rx-partial">Partial ⚠️</span>` :
+                    `<span class="rx-none">Rx Copy 🏥</span>`;
+    const revHtml = p.upsell > 0
+      ? `<span class="rev rev-up">SAR ${parseFloat(p.estRev||0).toFixed(0)}</span><span class="rev-upsell">+SAR ${parseFloat(p.upsell).toFixed(0)} if full Rx 💰</span>`
+      : `<span class="rev rev-norm">SAR ${parseFloat(p.estRev||0).toFixed(0)}</span>`;
+    return `<tr onclick="openDetail('${p.id}')">
+      <td><div class="patient-name">${p.name}</div><div class="patient-id">${p.id}${p.condition ? ' · '+p.condition : ''}</div></td>
+      <td><span class="phone">${p.phone}</span></td>
+      <td>${rxLabel}</td>
+      <td style="color:var(--txt2);font-size:13px">${formatDate(p.lastDate)}</td>
+      <td>
+        <div style="font-size:13px;font-weight:500">${formatDate(due)}</div>
+        <div class="days-badge ${s.dayCls}">${daysLabel}</div>
+      </td>
+      <td><span class="pill ${s.cls}"><span class="pill-dot"></span>${s.label}</span></td>
+      <td>${revHtml}</td>
+      <td onclick="event.stopPropagation()">
+        <div class="btn-row">
+          <button class="act-btn call" onclick="openCallModal('${p.id}')">📞 Call</button>
+          <button class="act-btn" onclick="openEditModal('${p.id}')">✏️</button>
+          <button class="act-btn" onclick="deletePatient('${p.id}')" style="color:var(--danger)">🗑</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ─────────────────────────────────────────
+// FILTERS
+// ─────────────────────────────────────────
+function setFilter(f) {
+  currentFilter = f;
+  ['all','overdue','today','soon','partial'].forEach(k => {
+    const el = document.getElementById('fb-'+k);
+    if (el) { el.classList.remove('active'); }
+  });
+  const nav = document.querySelectorAll('.nav-item');
+  nav.forEach(n => n.classList.remove('active'));
+  if (document.getElementById('fb-'+f)) { document.getElementById('fb-'+f).classList.add('active'); }
+  const titles = {all:'All Patients',overdue:'Overdue Refills',today:"Due Today",soon:'Due This Week',partial:'Partial Rx — Upsell Opportunities',stats:'Revenue Forecast',called:'Called Today'};
+  document.getElementById('pageTitle').textContent = titles[f] || 'Patients';
+  renderTable();
+}
+
+// ─────────────────────────────────────────
+// ADD / EDIT MODAL
+// ─────────────────────────────────────────
+function openAddModal() {
+  currentEditId = null; tempFiles = [];
+  document.getElementById('modalTitle').textContent = 'Register New Patient';
+  clearForm();
+  document.getElementById('addModal').classList.add('open');
+  document.getElementById('f_lastDate').value = today();
+}
+function openEditModal(id) {
+  currentEditId = id;
+  const p = patients.find(x => x.id === id);
+  document.getElementById('modalTitle').textContent = 'Edit Patient — ' + p.name;
+  populateForm(p);
+  tempFiles = (uploadedFiles[id] || []).map(f => ({...f}));
+  renderFileList();
+  document.getElementById('addModal').classList.add('open');
+}
+function clearForm() {
+  ['f_name','f_id','f_phone','f_insurance','f_condition','f_hospital','f_lastDate','f_lastRev','f_fullRev','f_estRev','f_upsell','f_notes'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('f_cycle').value = '90';
+  document.getElementById('f_rxtype').value = 'full';
+  document.getElementById('medRows').innerHTML = '';
+  document.getElementById('fileList').innerHTML = '';
+  tempFiles = [];
+  addMedRow();
+}
+function populateForm(p) {
+  document.getElementById('f_name').value = p.name || '';
+  document.getElementById('f_id').value = p.id || '';
+  document.getElementById('f_phone').value = p.phone || '';
+  document.getElementById('f_insurance').value = p.insurance || '';
+  document.getElementById('f_condition').value = p.condition || '';
+  document.getElementById('f_hospital').value = p.hospital || '';
+  document.getElementById('f_lastDate').value = p.lastDate || today();
+  document.getElementById('f_cycle').value = p.cycle || '90';
+  document.getElementById('f_rxtype').value = p.rxtype || 'full';
+  document.getElementById('f_lastRev').value = p.lastRev || '';
+  document.getElementById('f_fullRev').value = p.fullRev || '';
+  document.getElementById('f_notes').value = p.notes || '';
+  document.getElementById('medRows').innerHTML = '';
+  (p.meds||[]).forEach(m => addMedRow(m));
+  calcRevEst();
+}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function addMedRow(m = {}) {
+  const div = document.createElement('div');
+  div.className = 'med-row';
+  div.innerHTML = `
+    <input class="form-input" placeholder="Medicine name" value="${m.name||''}" style="font-size:13px">
+    <input class="form-input" placeholder="Qty/Strength" value="${m.qty||''}" style="font-size:13px">
+    <select class="form-select" style="font-size:12px">
+      <option value="us" ${m.src==='us'?'selected':''}>We dispense</option>
+      <option value="hospital" ${m.src==='hospital'?'selected':''}>Hospital</option>
+      <option value="partial" ${m.src==='partial'?'selected':''}>Split</option>
+    </select>
+    <button class="btn-del-med" onclick="this.parentElement.remove()">−</button>`;
+  document.getElementById('medRows').appendChild(div);
+}
+
+function getMeds() {
+  return Array.from(document.querySelectorAll('#medRows .med-row')).map(row => ({
+    name: row.children[0].value.trim(),
+    qty:  row.children[1].value.trim(),
+    src:  row.children[2].value
+  })).filter(m => m.name);
+}
+
+function calcRevEst() {
+  const last = parseFloat(document.getElementById('f_lastRev').value) || 0;
+  const full = parseFloat(document.getElementById('f_fullRev').value) || 0;
+  const rxtype = document.getElementById('f_rxtype').value;
+  let est = last, upsell = 0;
+  if (rxtype !== 'full' && full > last) { est = full; upsell = full - last; }
+  else { est = last; upsell = 0; }
+  document.getElementById('f_estRev').value = est ? `SAR ${est.toFixed(2)}` : '';
+  document.getElementById('f_upsell').value = upsell > 0 ? `SAR ${upsell.toFixed(2)}` : '—';
+}
+
+function savePatient() {
+  const name = document.getElementById('f_name').value.trim();
+  const phone = document.getElementById('f_phone').value.trim();
+  if (!name || !phone) { showToast('Name and phone are required', 'warn'); return; }
+  const last = parseFloat(document.getElementById('f_lastRev').value)||0;
+  const full = parseFloat(document.getElementById('f_fullRev').value)||0;
+  const rxtype = document.getElementById('f_rxtype').value;
+  const est = (rxtype !== 'full' && full > last) ? full : last;
+  const upsell = (rxtype !== 'full' && full > last) ? full - last : 0;
+
+  if (currentEditId) {
+    const idx = patients.findIndex(p => p.id === currentEditId);
+    patients[idx] = { ...patients[idx], name, phone,
+      id: document.getElementById('f_id').value.trim() || patients[idx].id,
+      insurance: document.getElementById('f_insurance').value.trim(),
+      condition: document.getElementById('f_condition').value.trim(),
+      hospital: document.getElementById('f_hospital').value.trim(),
+      lastDate: document.getElementById('f_lastDate').value,
+      cycle: document.getElementById('f_cycle').value,
+      rxtype, lastRev: last, fullRev: full, estRev: est, upsell,
+      meds: getMeds(), notes: document.getElementById('f_notes').value.trim()
+    };
+    uploadedFiles[currentEditId] = [...tempFiles];
+    showToast('Patient updated ✓', 'success');
+  } else {
+    const newId = 'P' + String(Date.now()).slice(-5);
+    patients.push({
+      id: document.getElementById('f_id').value.trim() || newId,
+      name, phone,
+      insurance: document.getElementById('f_insurance').value.trim(),
+      condition: document.getElementById('f_condition').value.trim(),
+      hospital: document.getElementById('f_hospital').value.trim(),
+      lastDate: document.getElementById('f_lastDate').value,
+      cycle: document.getElementById('f_cycle').value,
+      rxtype, lastRev: last, fullRev: full, estRev: est, upsell,
+      meds: getMeds(), notes: document.getElementById('f_notes').value.trim(),
+      logs: []
+    });
+    const pId = document.getElementById('f_id').value.trim() || newId;
+    uploadedFiles[pId] = [...tempFiles];
+    showToast('Patient registered ✓', 'success');
+  }
+  save(); closeModal('addModal'); renderAll();
+}
+
+function deletePatient(id) {
+  if (!confirm('Delete this patient record?')) return;
+  patients = patients.filter(p => p.id !== id);
+  delete uploadedFiles[id];
+  save(); renderAll();
+  showToast('Patient removed');
+  if (document.getElementById('detailPanel').classList.contains('open')) closeDetail();
+}
+
+// ─────────────────────────────────────────
+// FILE HANDLING
+// ─────────────────────────────────────────
+function handleFiles(files) {
+  Array.from(files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      tempFiles.push({ name: file.name, dataUrl: e.target.result, type: file.type });
+      renderFileList();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+function renderFileList() {
+  document.getElementById('fileList').innerHTML = tempFiles.map((f,i) => `
+    <div class="file-item">
+      <span>${f.type.includes('pdf') ? '📄' : '🖼'}</span>
+      <span class="file-name">${f.name}</span>
+      <button class="file-remove" onclick="removeFile(${i})">×</button>
+    </div>`).join('');
+}
+function removeFile(i) { tempFiles.splice(i,1); renderFileList(); }
+
+// ─────────────────────────────────────────
+// CALL MODAL
+// ─────────────────────────────────────────
+function openCallModal(id) {
+  callTargetId = id;
+  const p = patients.find(x => x.id === id);
+  document.getElementById('callModalSub').textContent = p.name + ' — ' + p.phone;
+  document.getElementById('callNote').value = '';
+  document.getElementById('callNextDate').value = '';
+  selectedOutcome = null;
+  ['won','miss','no'].forEach(o => document.getElementById('out-'+o).className = 'outcome-opt');
+  document.getElementById('callModal').classList.add('open');
+}
+function openCallFromDetail() {
+  const id = document.querySelector('.detail-panel').dataset.pid;
+  if (id) openCallModal(id);
+}
+function selectOutcome(o) {
+  selectedOutcome = o;
+  ['won','miss','no'].forEach(k => document.getElementById('out-'+k).className = 'outcome-opt' + (k===o ? ` selected-${k}` : ''));
+}
+function saveCallLog() {
+  if (!selectedOutcome) { showToast('Please select call outcome', 'warn'); return; }
+  const p = patients.find(x => x.id === callTargetId);
+  if (!p.logs) p.logs = [];
+  p.logs.unshift({
+    date: today(),
+    outcome: selectedOutcome,
+    note: document.getElementById('callNote').value.trim(),
+    next: document.getElementById('callNextDate').value
+  });
+  if (selectedOutcome === 'won') {
+    showToast(`✅ Great! ${p.name} confirmed coming`, 'success');
+  }
+  save(); closeModal('callModal'); renderAll();
+  // refresh detail panel if open
+  if (document.getElementById('detailPanel').classList.contains('open')) {
+    openDetail(callTargetId);
+  }
+}
+
+// ─────────────────────────────────────────
+// DETAIL PANEL
+// ─────────────────────────────────────────
+function openDetail(id) {
+  const p = patients.find(x => x.id === id);
+  const panel = document.getElementById('detailPanel');
+  panel.dataset.pid = id;
+  const s = getStatus(p);
+  document.getElementById('dp_name').textContent = p.name;
+  document.getElementById('dp_meta').textContent = `${p.id} · ${p.phone} · ${p.insurance||'—'}`;
+  document.getElementById('dp_due').innerHTML = `<span class="pill ${s.cls}" style="font-size:11px"><span class="pill-dot"></span>${formatDate(dueDate(p))}</span>`;
+  document.getElementById('dp_cycle').textContent = p.cycle + ' days';
+  document.getElementById('dp_rxtype').textContent = p.rxtype === 'full' ? '✅ Full Rx' : p.rxtype === 'partial' ? '⚠️ Partial Rx' : '🏥 Rx Copy (hospital dispensed)';
+  document.getElementById('dp_insurance').textContent = p.insurance || '—';
+  document.getElementById('dp_condition').textContent = p.condition || '—';
+  document.getElementById('dp_lastrev').textContent  = p.lastRev ? `SAR ${parseFloat(p.lastRev).toFixed(2)}` : '—';
+  document.getElementById('dp_estrev').textContent   = p.estRev  ? `SAR ${parseFloat(p.estRev).toFixed(2)}`  : '—';
+  document.getElementById('dp_upsell').textContent   = p.upsell > 0 ? `+SAR ${parseFloat(p.upsell).toFixed(2)}` : 'None';
+
+  document.getElementById('dp_meds').innerHTML = (p.meds||[]).length
+    ? (p.meds||[]).map(m => `<div class="dp-med">
+        <span class="dp-med-name">${m.name}</span>
+        <span class="dp-med-dispensed">${m.qty}</span>
+        <span class="dp-med-src ${m.src==='us'?'src-us':m.src==='hospital'?'src-hosp':'src-partial'}">
+          ${m.src==='us'?'We dispense':m.src==='hospital'?'Hospital':'Split'}
+        </span></div>`).join('')
+    : '<div style="color:var(--txt3);font-size:13px">No medicines recorded</div>';
+
+  const files = uploadedFiles[id] || [];
+  document.getElementById('dp_files').innerHTML = files.length
+    ? files.map(f => `<div class="dp-file" onclick="viewFile('${id}','${f.name}')">
+        <span class="dp-file-icon">${f.type&&f.type.includes('pdf')?'📄':'🖼'}</span>
+        <span>${f.name}</span></div>`).join('')
+    : '<div style="color:var(--txt3);font-size:13px">No documents uploaded</div>';
+
+  const logs = (p.logs||[]);
+  document.getElementById('dp_logs').innerHTML = logs.length
+    ? logs.map(l => `<div class="call-entry call-outcome-${l.outcome||'miss'}">
+        <div><div class="call-date">${formatDate(l.date)}</div><div style="font-size:10px;color:var(--txt3);margin-top:2px">${l.outcome==='won'?'✅ Coming':l.outcome==='miss'?'📅 Rescheduled':'❌ No answer'}</div></div>
+        <div class="call-text">${l.note||'(no note)'}</div>
+      </div>`).join('')
+    : '<div style="color:var(--txt3);font-size:13px">No calls logged yet</div>';
+
+  panel.classList.add('open');
+}
+function closeDetail() { document.getElementById('detailPanel').classList.remove('open'); }
+function editFromDetail() {
+  const id = document.getElementById('detailPanel').dataset.pid;
+  closeDetail(); openEditModal(id);
+}
+function viewFile(pid, fname) {
+  const files = uploadedFiles[pid]||[];
+  const f = files.find(x => x.name === fname);
+  if (!f) return;
+  const w = window.open();
+  w.document.write(`<iframe src="${f.dataUrl}" style="width:100%;height:100%;border:none"></iframe>`);
+}
+
+// ─────────────────────────────────────────
+// EXPORT
+// ─────────────────────────────────────────
+function exportCSV() {
+  const rows = [['ID','Name','Phone','Insurance','Condition','Last Dispense','Cycle','Rx Type','Due Date','Status','Last Rev','Est Rev','Upsell']];
+  patients.forEach(p => {
+    const s = getStatus(p);
+    rows.push([p.id,p.name,p.phone,p.insurance,p.condition,p.lastDate,p.cycle+'d',p.rxtype,dueDate(p),s.label,p.lastRev||0,p.estRev||0,p.upsell||0]);
+  });
+  const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download = `ChronicRx_Export_${today()}.csv`;
+  a.click();
+  showToast('Exported to CSV ✓', 'success');
+}
+
+// ─────────────────────────────────────────
+// TOAST
+// ─────────────────────────────────────────
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast ' + type;
+  void t.offsetWidth; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ─────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────
+renderAll();
+</script>
+</body>
+</html>
