@@ -339,12 +339,140 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #cdd5e0; border-radius: 3px; }
 
-  /* Responsive */
-  @media (max-width: 900px) {
-    .kpi-row { grid-template-columns: repeat(2,1fr); }
-    .sidebar { display: none; }
-    .form-grid { grid-template-columns: 1fr; }
+  /* ── MOBILE BOTTOM NAV ───────────────────────── */
+  .mobile-nav {
+    display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 120;
+    background: var(--navy); border-top: 1px solid rgba(255,255,255,0.08);
+    padding: 0; height: 60px;
+  }
+  .mobile-nav-inner { display: flex; height: 100%; }
+  .mob-nav-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; cursor: pointer; color: #6a7fa8; transition: color .15s; padding: 0 4px;
+    border: none; background: none;
+  }
+  .mob-nav-item.active { color: var(--teal2); }
+  .mob-nav-item:active { background: rgba(255,255,255,0.05); }
+  .mob-nav-icon { font-size: 18px; line-height: 1; }
+  .mob-nav-label { font-family: 'Montserrat', sans-serif; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+
+  /* ── MOBILE FAB ──────────────────────────────── */
+  .fab {
+    display: none; position: fixed; bottom: 72px; right: 18px; z-index: 130;
+    width: 52px; height: 52px; border-radius: 50%; background: var(--teal);
+    color: #fff; font-size: 26px; border: none; cursor: pointer;
+    box-shadow: 0 4px 20px rgba(10,143,122,0.5); align-items: center; justify-content: center;
+    transition: background .2s; line-height: 1;
+  }
+  .fab:active { background: var(--teal2); transform: scale(0.95); }
+
+  /* ── PATIENT CARDS (mobile) ──────────────────── */
+  .card-list { display: none; flex-direction: column; gap: 10px; }
+  .pat-card {
+    background: var(--card); border-radius: var(--radius); padding: 14px 16px;
+    box-shadow: var(--shadow); border: 1px solid var(--border);
+    border-left: 4px solid var(--border); cursor: pointer; transition: box-shadow .15s;
+    position: relative;
+  }
+  .pat-card:active { box-shadow: var(--shadow2); }
+  .pat-card.status-overdue { border-left-color: var(--danger); }
+  .pat-card.status-today   { border-left-color: var(--warn); }
+  .pat-card.status-soon    { border-left-color: var(--gold); }
+  .pat-card.status-ok      { border-left-color: var(--ok); }
+  .pat-card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
+  .pat-card-name { font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700; color: var(--navy); }
+  .pat-card-id { font-size: 11px; color: var(--txt3); margin-top: 2px; }
+  .pat-card-mid { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; }
+  .pat-card-bottom { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+  .pat-card-rev { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 15px; color: var(--teal); }
+  .pat-card-upsell { font-size: 11px; color: var(--gold); font-weight: 600; }
+  .pat-card-actions { display: flex; gap: 6px; }
+  .mob-call-btn {
+    background: var(--teal); color: #fff; border: none; border-radius: 8px;
+    padding: 7px 14px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; gap: 5px;
+  }
+  .mob-edit-btn {
+    background: #f0f3f8; color: var(--txt2); border: none; border-radius: 8px;
+    padding: 7px 10px; font-size: 14px; cursor: pointer;
+  }
+
+  /* ── RESPONSIVE BREAKPOINTS ──────────────────── */
+  @media (max-width: 768px) {
+    /* topbar */
+    .topbar { padding: 0 14px; height: 52px; }
+    .topbar > div:nth-child(2) { display: none; } /* hide branding on very small screens, shown below in footer */
+    .logo { font-size: 16px; }
+    .logo > span:last-child { display: none; } /* hide subtitle */
+    .badge-count { font-size: 10px; padding: 2px 6px; }
+    .btn-top { padding: 6px 10px; font-size: 11px; }
+    .btn-top span { display: none; } /* hide icon labels if any */
+
+    /* layout */
+    .shell { height: calc(100vh - 52px); overflow: hidden; }
+    .sidebar { display: none !important; }
+    .main { padding: 12px 12px 80px; overflow-y: auto; }
+
+    /* page header */
+    .page-header { margin-bottom: 14px; flex-direction: column; gap: 8px; }
+    .page-title { font-size: 18px; }
+    .page-sub { font-size: 12px; }
+    .page-header > div:last-child { display: none; } /* hide export button from header on mobile */
+
+    /* KPI */
+    .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 14px; }
+    .kpi { padding: 12px 14px; }
+    .kpi-val { font-size: 24px; }
+    .kpi-lbl { font-size: 11px; }
+    .kpi-sub { display: none; }
+
+    /* toolbar */
+    .toolbar { gap: 6px; margin-bottom: 12px; }
+    .search-box { min-width: 0; font-size: 13px; padding: 8px 12px; }
+    .filter-btn { padding: 7px 10px; font-size: 11px; }
+
+    /* hide table, show cards */
+    .table-wrap { display: none; }
+    .card-list { display: flex; }
+
+    /* detail panel full screen on mobile */
+    .detail-panel { width: 100%; right: -100%; top: 52px; }
+    .detail-panel.open { right: 0; }
+
+    /* mobile nav + fab */
+    .mobile-nav { display: block; }
+    .fab { display: flex; }
+
+    /* footer on mobile */
+    #footerBar { display: none !important; }
+    div[style*="position:fixed;bottom:0;left:230px"] { display: none !important; }
+
+    /* modals */
+    .modal { border-radius: 14px 14px 0 0; position: fixed; bottom: 0; left: 0; right: 0; width: 100%; max-width: 100%; max-height: 92vh; margin: 0; animation: slideUpMob .25s ease; }
+    @keyframes slideUpMob { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .modal-bg { align-items: flex-end; }
+    .modal-body { padding: 16px 16px; }
+    .modal-header { padding: 16px 18px; border-radius: 14px 14px 0 0; }
+    .modal-footer { padding: 12px 16px; }
+    .form-grid { grid-template-columns: 1fr; gap: 10px; }
     .form-grid.three { grid-template-columns: 1fr; }
+    .med-row { grid-template-columns: 1fr 80px auto; }
+    .med-row > select { display: none; } /* simplify on mobile */
+
+    /* call modal */
+    .outcome-grid { grid-template-columns: repeat(3,1fr); gap: 8px; }
+    .outcome-opt { padding: 10px 6px; }
+    .outcome-icon { font-size: 20px; }
+    .outcome-label { font-size: 10px; }
+
+    /* toast */
+    .toast { bottom: 70px; left: 12px; right: 12px; text-align: center; font-size: 13px; }
+  }
+
+  @media (max-width: 400px) {
+    .kpi-row { grid-template-columns: repeat(2,1fr); }
+    .kpi-val { font-size: 20px; }
+    .filter-btn { padding: 6px 8px; font-size: 10px; }
   }
 </style>
 </head>
@@ -353,7 +481,11 @@
 <!-- TOP BAR -->
 <div class="topbar">
   <div class="logo">Chronic<span>Rx</span> <span style="font-size:12px;color:#a8b4cc;font-weight:400;font-family:'DM Sans'"> — Prescription Follow-up System</span></div>
-  <div style="font-size:11px;color:#6a7fa8;font-family:'DM Sans';letter-spacing:0.02em">Built by <span style="color:var(--teal2);font-weight:600">Dr. Mohamed Baydoun</span></div>
+  <div style="font-size:11px;color:#6a7fa8;font-family:'DM Sans';line-height:1.5;text-align:center" id="topbarBranding">
+    <span style="color:#a8b4cc">Created by</span> <span style="color:var(--teal2);font-weight:700;font-family:'Montserrat',sans-serif">Dr. Mohamed Baydon</span>
+    <span style="color:#2a3a5a;margin:0 4px">·</span>
+    <span style="color:#a8b4cc">Supervisor</span> <span style="color:var(--gold);font-weight:700;font-family:'Montserrat',sans-serif">Dr. Mahmoud Abdelgalil</span>
+  </div>
   <div class="topbar-right">
     <span id="overdueTopBadge" class="badge-count">0 overdue</span>
     <button class="btn-top" onclick="openAddModal()">＋ New Patient</button>
@@ -385,6 +517,13 @@
       <div style="display:flex;gap:10px">
         <button class="btn-top" style="background:var(--gold);color:var(--navy)" onclick="exportCSV()">⬇ Export</button>
       </div>
+    </div>
+
+    <!-- MOBILE BRANDING STRIP -->
+    <div id="mobileBranding" style="display:none;background:var(--navy);border-radius:10px;padding:10px 14px;margin-bottom:12px;text-align:center;line-height:1.7">
+      <div style="font-size:10px;color:#6a7fa8;font-family:'DM Sans';text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">ChronicRx · Prescription Follow-up System</div>
+      <div style="font-size:12px;color:#a8b4cc;font-family:'DM Sans'">Created by <span style="color:var(--teal2);font-weight:700;font-family:'Montserrat',sans-serif">Dr. Mohamed Baydon</span></div>
+      <div style="font-size:12px;color:#a8b4cc;font-family:'DM Sans'">Area Supervisor <span style="color:var(--gold);font-weight:700;font-family:'Montserrat',sans-serif">Dr. Mahmoud Abdelgalil</span></div>
     </div>
 
     <!-- KPI row -->
@@ -439,6 +578,9 @@
         <tbody id="patientTbody"></tbody>
       </table>
     </div>
+
+    <!-- MOBILE CARD LIST -->
+    <div class="card-list" id="cardList"></div>
   </div>
 </div>
 
@@ -642,15 +784,42 @@
   </div>
 </div>
 
+<!-- MOBILE BOTTOM NAV -->
+<nav class="mobile-nav">
+  <div class="mobile-nav-inner">
+    <button class="mob-nav-item active" id="mn-all" onclick="setFilter('all');setMobNav('all')">
+      <span class="mob-nav-icon">🗂</span><span class="mob-nav-label">All</span>
+    </button>
+    <button class="mob-nav-item" id="mn-overdue" onclick="setFilter('overdue');setMobNav('overdue')">
+      <span class="mob-nav-icon">🔴</span><span class="mob-nav-label">Overdue</span>
+    </button>
+    <button class="mob-nav-item" id="mn-today" onclick="setFilter('today');setMobNav('today')">
+      <span class="mob-nav-icon">🟠</span><span class="mob-nav-label">Today</span>
+    </button>
+    <button class="mob-nav-item" id="mn-partial" onclick="setFilter('partial');setMobNav('partial')">
+      <span class="mob-nav-icon">💰</span><span class="mob-nav-label">Upsell</span>
+    </button>
+    <button class="mob-nav-item" id="mn-soon" onclick="setFilter('soon');setMobNav('soon')">
+      <span class="mob-nav-icon">🟡</span><span class="mob-nav-label">Soon</span>
+    </button>
+  </div>
+</nav>
+
+<!-- FAB -->
+<button class="fab" onclick="openAddModal()" title="Add new patient">＋</button>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
 <!-- FOOTER -->
-<div style="position:fixed;bottom:0;left:230px;right:0;height:28px;background:var(--navy);display:flex;align-items:center;justify-content:center;gap:6px;z-index:50;border-top:1px solid rgba(255,255,255,0.06)">
-  <span style="font-size:11px;color:#4a5878;font-family:'DM Sans'">ChronicRx Prescription Follow-up System</span>
+<div id="footerBar" style="position:fixed;bottom:0;left:230px;right:0;height:28px;background:var(--navy);display:flex;align-items:center;justify-content:center;gap:8px;z-index:50;border-top:1px solid rgba(255,255,255,0.06)">
+  <span style="font-size:11px;color:#2a3a5a;font-family:'DM Sans'">ChronicRx</span>
   <span style="color:#2a3a5a;font-size:11px">·</span>
-  <span style="font-size:11px;color:#4a5878;font-family:'DM Sans'">Designed & created by</span>
-  <span style="font-size:11px;font-weight:700;color:var(--teal2);font-family:'Montserrat',sans-serif;letter-spacing:0.02em">Dr. Mohamed Baydoun</span>
+  <span style="font-size:11px;color:#4a5878;font-family:'DM Sans'">Created by</span>
+  <span style="font-size:11px;font-weight:700;color:var(--teal2);font-family:'Montserrat',sans-serif">Dr. Mohamed Baydon</span>
+  <span style="color:#2a3a5a;font-size:11px">·</span>
+  <span style="font-size:11px;color:#4a5878;font-family:'DM Sans'">Area Supervisor</span>
+  <span style="font-size:11px;font-weight:700;color:var(--gold);font-family:'Montserrat',sans-serif">Dr. Mahmoud Abdelgalil</span>
 </div>
 
 <script>
@@ -798,11 +967,66 @@ function renderTable() {
       </td>
     </tr>`;
   }).join('');
+  renderCards(filtered);
 }
 
 // ─────────────────────────────────────────
-// FILTERS
+// MOBILE NAV HELPER
 // ─────────────────────────────────────────
+function setMobNav(f) {
+  ['all','overdue','today','partial','soon'].forEach(k => {
+    const el = document.getElementById('mn-'+k);
+    if (el) el.classList.toggle('active', k === f);
+  });
+}
+
+// ─────────────────────────────────────────
+// MOBILE CARD RENDER
+// ─────────────────────────────────────────
+function renderCards(filtered) {
+  const container = document.getElementById('cardList');
+  if (!container) return;
+  if (!filtered.length) {
+    container.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No patients match this filter</div></div>`;
+    return;
+  }
+  container.innerHTML = filtered.map(p => {
+    const s = getStatus(p);
+    const due = dueDate(p);
+    const days = daysUntil(due);
+    const daysLabel = days < 0 ? `${Math.abs(days)}d overdue` : days === 0 ? 'Due Today' : `in ${days}d`;
+    const rxBadge = p.rxtype === 'full'
+      ? `<span class="rx-full">Full Rx ✅</span>`
+      : p.rxtype === 'partial'
+      ? `<span class="rx-partial">Partial ⚠️</span>`
+      : `<span class="rx-none">Rx Copy 🏥</span>`;
+    const revLine = p.upsell > 0
+      ? `<div><span class="pat-card-rev">SAR ${parseFloat(p.estRev||0).toFixed(0)}</span><div class="pat-card-upsell">+SAR ${parseFloat(p.upsell).toFixed(0)} if full Rx 💰</div></div>`
+      : `<span class="pat-card-rev" style="color:var(--txt2)">SAR ${parseFloat(p.estRev||0).toFixed(0)}</span>`;
+    return `
+    <div class="pat-card status-${s.type}" onclick="openDetail('${p.id}')">
+      <div class="pat-card-top">
+        <div>
+          <div class="pat-card-name">${p.name}</div>
+          <div class="pat-card-id">${p.id}${p.condition ? ' · ' + p.condition : ''}</div>
+        </div>
+        <span class="pill ${s.cls}" style="font-size:10px"><span class="pill-dot"></span>${daysLabel}</span>
+      </div>
+      <div class="pat-card-mid">
+        ${rxBadge}
+        <span style="font-size:11px;color:var(--txt3)">Due: ${formatDate(due)}</span>
+        <span style="font-size:11px;color:var(--txt2)">${p.phone}</span>
+      </div>
+      <div class="pat-card-bottom">
+        ${revLine}
+        <div class="pat-card-actions" onclick="event.stopPropagation()">
+          <button class="mob-call-btn" onclick="openCallModal('${p.id}')">📞 Call</button>
+          <button class="mob-edit-btn" onclick="openEditModal('${p.id}')">✏️</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
 function setFilter(f) {
   currentFilter = f;
   ['all','overdue','today','soon','partial'].forEach(k => {
@@ -1105,6 +1329,10 @@ function showToast(msg, type='') {
 // INIT
 // ─────────────────────────────────────────
 renderAll();
+if (window.innerWidth <= 768) {
+  const mb = document.getElementById('mobileBranding');
+  if (mb) mb.style.display = 'block';
+}
 </script>
 </body>
 </html>
