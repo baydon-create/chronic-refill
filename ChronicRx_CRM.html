@@ -1,0 +1,1704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0B1220">
+<title>ChronicRx — Refill Intelligence</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Crect width='36' height='36' rx='10' fill='%233a5bd9'/%3E%3Cg transform='rotate(-45 18 18)'%3E%3Crect x='7' y='13' width='22' height='10' rx='5' fill='none' stroke='white' stroke-width='2.4'/%3E%3Cpath d='M12 13h6v10h-6a5 5 0 0 1 0-10z' fill='%2334d399'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:        #0B1220;
+    --ink-line:   rgba(255,255,255,.08);
+    --on-ink:     #FFFFFF;
+    --on-ink-2:   rgba(255,255,255,.66);
+    --on-ink-3:   rgba(255,255,255,.44);
+    --brand:      #3A5BD9;
+    --brand-h:    #2E4BC0;
+    --brand-s:    #EDF1FE;
+    --brand-t:    #2B47B8;
+    --mint:       #34D399;
+
+    --bg:         #F4F5F7;
+    --surface:    #FFFFFF;
+    --surface-2:  #F8F9FB;
+    --line:       #E6E8EE;
+    --line-2:     #EFF1F5;
+    --text:       #0F172A;
+    --text-2:     #475467;
+    --text-3:     #8A94A6;
+
+    --red:    #C4320A; --red-s:    #FEF0EC;
+    --orange: #B54708; --orange-s: #FEF4E6;
+    --violet: #6941C6; --violet-s: #F3EFFD;
+    --green:  #067647; --green-s:  #E8F6EE;
+    --amber:  #93600F; --amber-s:  #FDF5E3;
+    --teal:   #0E7490; --teal-s:   #E3F4F8;
+
+    --c-base: #3A5BD9;
+    --c-up:   #B8791A;
+
+    --r-lg: 16px;
+    --r:    12px;
+    --r-sm: 9px;
+    --sh-1: 0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.03);
+    --sh-2: 0 12px 32px -8px rgba(16,24,40,.14), 0 4px 8px -4px rgba(16,24,40,.06);
+    --sh-3: 0 24px 64px -12px rgba(11,18,32,.35);
+    --w: 1280px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: 'Jost', system-ui, sans-serif; font-size: 14.5px; line-height: 1.5; color: var(--text);
+    background: var(--bg); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+    font-feature-settings: "tnum" 1;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; background: none; border: 0; }
+  a { color: inherit; text-decoration: none; }
+  svg.ic { width: 18px; height: 18px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .container { max-width: var(--w); margin: 0 auto; padding: 0 32px; }
+  .nw { white-space: nowrap; }
+  .muted { color: var(--text-3); }
+  .sm { font-size: 13px; }
+
+  /* ═════════ TOP NAVIGATION ═════════ */
+  .topnav { background: var(--ink); position: sticky; top: 0; z-index: 80; border-bottom: 1px solid var(--ink-line); }
+  .topnav .container { display: flex; align-items: center; height: 64px; gap: 28px; }
+  .brand { display: flex; align-items: center; gap: 11px; flex-shrink: 0; }
+  .brand svg { width: 34px; height: 34px; display: block; }
+  .wordmark { color: var(--on-ink); font-size: 19px; font-weight: 500; letter-spacing: -.01em; line-height: 1; }
+  .wordmark b { font-weight: 700; color: var(--mint); }
+  .brand-tag { font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--on-ink-3); margin-top: 4px; line-height: 1; }
+  .tabs { display: flex; align-self: stretch; gap: 4px; }
+  .tab { position: relative; display: flex; align-items: center; gap: 8px; padding: 0 12px; color: var(--on-ink-2); font-size: 14.5px; font-weight: 500; transition: color .15s; white-space: nowrap; }
+  .tab svg.ic { width: 17px; height: 17px; opacity: .8; }
+  .tab:hover, .tab.active { color: var(--on-ink); }
+  .tab.active::after { content: ''; position: absolute; left: 12px; right: 12px; bottom: -1px; height: 2px; border-radius: 2px 2px 0 0; background: var(--mint); }
+  .pip { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #E5484D; color: #fff; font-size: 11px; font-weight: 600; display: grid; place-items: center; }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .nav-search { position: relative; width: 250px; }
+  .nav-search svg.ic { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--on-ink-3); pointer-events: none; }
+  .nav-search input { width: 100%; height: 38px; border-radius: var(--r-sm); border: 1px solid var(--ink-line); background: rgba(255,255,255,.05); color: var(--on-ink); padding: 0 40px 0 36px; font-size: 14px; outline: none; transition: all .15s; }
+  .nav-search input::placeholder { color: var(--on-ink-3); }
+  .nav-search input:focus { background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.2); }
+  .nav-search kbd { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font: 500 11px 'Jost', sans-serif; color: var(--on-ink-3); border: 1px solid var(--ink-line); border-radius: 5px; padding: 1px 6px; }
+  .nav-btn { height: 38px; padding: 0 12px; border-radius: var(--r-sm); color: var(--on-ink-2); display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 500; border: 1px solid var(--ink-line); transition: all .15s; }
+  .nav-btn:hover { color: var(--on-ink); background: rgba(255,255,255,.06); }
+  .nav-btn svg.ic { width: 16px; height: 16px; }
+  .btn-light { height: 38px; padding: 0 16px; border-radius: var(--r-sm); background: #fff; color: var(--ink); font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 7px; transition: box-shadow .15s; white-space: nowrap; }
+  .btn-light:hover { box-shadow: 0 0 0 4px rgba(255,255,255,.14); }
+  .btn-light svg.ic { width: 16px; height: 16px; stroke-width: 2.2; }
+  .menu-wrap { position: relative; }
+  .menu { position: absolute; right: 0; top: calc(100% + 8px); width: 270px; background: var(--surface); border-radius: var(--r); box-shadow: var(--sh-3); border: 1px solid var(--line); padding: 6px; z-index: 90; display: none; }
+  .menu.open { display: block; animation: pop .14s ease; }
+  @keyframes pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  .menu button { width: 100%; display: flex; align-items: flex-start; gap: 11px; padding: 9px 10px; border-radius: 8px; font-size: 14px; text-align: left; color: var(--text); }
+  .menu button:hover { background: var(--surface-2); }
+  .menu button svg.ic { color: var(--text-3); width: 17px; height: 17px; margin-top: 2px; }
+  .menu .m-sub { font-size: 12px; color: var(--text-3); line-height: 1.3; }
+  .menu hr { border: 0; border-top: 1px solid var(--line-2); margin: 6px 4px; }
+  .menu .credits { padding: 8px 10px 6px; font-size: 12.5px; color: var(--text-3); line-height: 1.6; }
+  .menu .credits strong { color: var(--text-2); font-weight: 600; }
+
+  /* ═════════ HERO ═════════ */
+  .hero { background: radial-gradient(900px 380px at 88% -30%, rgba(58,91,217,.42), transparent 62%), radial-gradient(600px 300px at 0% 130%, rgba(52,211,153,.14), transparent 60%), var(--ink); color: var(--on-ink); position: relative; overflow: hidden; }
+  .hero::before { content: ''; position: absolute; inset: 0; pointer-events: none;
+    background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size: 44px 44px; -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,.9), transparent 85%); mask-image: linear-gradient(180deg, rgba(0,0,0,.9), transparent 85%); }
+  .hero .container { position: relative; padding-top: 36px; padding-bottom: 96px; display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; flex-wrap: wrap; }
+  .hero-l { min-width: 0; flex: 1 1 420px; }
+  .eyebrow { font-size: 12px; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; color: var(--on-ink-3); display: flex; align-items: center; gap: 9px; }
+  .eyebrow .live { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 0 4px rgba(52,211,153,.18); }
+  .hero h1 { font-size: 36px; font-weight: 500; letter-spacing: -.02em; line-height: 1.15; margin-top: 10px; }
+  .hero-sub { color: var(--on-ink-2); font-size: 15.5px; margin-top: 8px; max-width: 640px; }
+  .hero-sub strong { color: var(--on-ink); font-weight: 600; }
+  .hero-stats { display: flex; }
+  .hero-stat { padding: 0 26px; border-left: 1px solid var(--ink-line); white-space: nowrap; }
+  .hero-stat:first-child { padding-left: 0; border-left: 0; }
+  .hero-stat .l { font-size: 12.5px; color: var(--on-ink-3); }
+  .hero-stat .v { font-size: 26px; font-weight: 600; letter-spacing: -.02em; margin-top: 2px; line-height: 1.15; }
+  .hero-stat .v small, .kpi-v small { font-size: 14px; font-weight: 500; opacity: .6; margin-right: 4px; letter-spacing: 0; }
+  .hero-stat .d { font-size: 12.5px; color: var(--on-ink-2); margin-top: 2px; }
+  .hero-stat .d.mint { color: var(--mint); }
+  .seg-dark { display: inline-flex; padding: 4px; border-radius: 11px; background: rgba(255,255,255,.06); border: 1px solid var(--ink-line); }
+  .seg-dark button { height: 32px; padding: 0 14px; border-radius: 8px; color: var(--on-ink-2); font-size: 13.5px; font-weight: 500; white-space: nowrap; }
+  .seg-dark button:hover { color: #fff; }
+  .seg-dark button.active { background: #fff; color: var(--ink); }
+  .date-dark { display: flex; align-items: center; gap: 6px; }
+  .date-dark .sq { width: 36px; height: 36px; border-radius: 9px; border: 1px solid var(--ink-line); color: var(--on-ink-2); display: grid; place-items: center; }
+  .date-dark .sq:hover, .date-dark .txt:hover { background: rgba(255,255,255,.06); color: #fff; }
+  .date-dark input { height: 36px; border-radius: 9px; border: 1px solid var(--ink-line); background: rgba(255,255,255,.05); color: #fff; padding: 0 10px; color-scheme: dark; outline: none; }
+  .date-dark .txt { height: 36px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--ink-line); color: var(--on-ink-2); font-weight: 500; font-size: 13.5px; }
+
+  /* ═════════ PAGE ═════════ */
+  .page { margin-top: -64px; position: relative; padding-bottom: 56px; }
+  .grid { display: grid; gap: 20px; }
+  .g-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .g-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .g-main { grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); }
+  .mt { margin-top: 20px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--sh-1); min-width: 0; overflow: hidden; }
+  .card-h { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 22px; flex-wrap: wrap; }
+  .card-h.b { border-bottom: 1px solid var(--line-2); }
+  .card-t { font-size: 16px; font-weight: 600; letter-spacing: -.005em; }
+  .card-s { font-size: 13px; color: var(--text-3); margin-top: 1px; }
+  .card-b { padding: 4px 22px 22px; }
+  .link { color: var(--brand); font-weight: 500; font-size: 13.5px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .link:hover { color: var(--brand-h); }
+  .link svg.ic { width: 15px; height: 15px; }
+
+  .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--sh-2); padding: 20px 22px; text-align: left; width: 100%; display: flex; flex-direction: column; transition: transform .15s, box-shadow .15s, border-color .15s; min-width: 0; }
+  button.kpi:hover { transform: translateY(-2px); box-shadow: 0 18px 40px -12px rgba(16,24,40,.2); }
+  button.kpi.active { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand), var(--sh-2); }
+  .kpi-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .kpi-l { font-size: 13.5px; color: var(--text-2); font-weight: 500; }
+  .kpi-v { font-size: 32px; font-weight: 600; letter-spacing: -.025em; line-height: 1.1; margin-top: 12px; white-space: nowrap; }
+  .kpi-f { margin-top: auto; padding-top: 10px; font-size: 13px; color: var(--text-3); }
+  .chip-ic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; flex-shrink: 0; }
+  .chip-ic svg.ic { width: 18px; height: 18px; }
+  .x-red { background: var(--red-s); color: var(--red); }
+  .x-orange { background: var(--orange-s); color: var(--orange); }
+  .x-violet { background: var(--violet-s); color: var(--violet); }
+  .x-green { background: var(--green-s); color: var(--green); }
+  .x-brand { background: var(--brand-s); color: var(--brand); }
+  .x-amber { background: var(--amber-s); color: var(--amber); }
+  .t-red { color: var(--red); } .t-orange { color: var(--orange); } .t-violet { color: var(--violet); }
+  .t-green { color: var(--green); } .t-brand { color: var(--brand); } .t-amber { color: var(--amber); }
+
+  .btn { height: 38px; padding: 0 15px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--surface); display: inline-flex; align-items: center; justify-content: center; gap: 7px; font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; transition: all .15s; box-shadow: 0 1px 2px rgba(16,24,40,.05); }
+  .btn:hover { background: var(--surface-2); border-color: #D6DAE3; }
+  .btn svg.ic { width: 16px; height: 16px; }
+  .btn-brand { background: var(--brand); border-color: var(--brand); color: #fff; box-shadow: 0 1px 2px rgba(16,24,40,.1), inset 0 1px 0 rgba(255,255,255,.12); }
+  .btn-brand:hover { background: var(--brand-h); border-color: var(--brand-h); }
+  .btn-danger { background: var(--red); border-color: var(--red); color: #fff; }
+  .btn-danger:hover { background: #A52A08; border-color: #A52A08; }
+  .btn-ghost-danger { color: var(--red); }
+  .btn-sm { height: 32px; padding: 0 11px; font-size: 13px; border-radius: 8px; }
+  .ib { width: 34px; height: 34px; border-radius: 9px; display: inline-grid; place-items: center; color: var(--text-3); border: 1px solid transparent; transition: all .15s; flex-shrink: 0; }
+  .ib:hover { background: var(--surface-2); border-color: var(--line); color: var(--text); }
+  .ib svg.ic { width: 17px; height: 17px; }
+  .ib.call { color: var(--brand); background: var(--brand-s); }
+  .ib.call:hover { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .ib.danger:hover { color: var(--red); background: var(--red-s); border-color: transparent; }
+
+  .av { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-size: 13.5px; font-weight: 600; flex-shrink: 0; letter-spacing: .02em; }
+  .who { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .who-n { font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .who-m { font-size: 13px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .who-m a:hover { color: var(--brand); text-decoration: underline; }
+
+  .badge { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border-radius: 999px; font-size: 12.5px; font-weight: 500; white-space: nowrap; }
+  .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .b-overdue { background: var(--red-s); color: var(--red); }
+  .b-today { background: var(--orange-s); color: var(--orange); }
+  .b-soon { background: var(--violet-s); color: var(--violet); }
+  .b-ok { background: var(--green-s); color: var(--green); }
+  .b-cb { background: var(--brand-s); color: var(--brand-t); }
+  .tag { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 6px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+  .rx-full { background: #F1F3F7; color: var(--text-2); }
+  .rx-partial { background: var(--amber-s); color: var(--amber); }
+  .rx-none { background: var(--teal-s); color: var(--teal); }
+
+  /* ═════════ OVERVIEW ═════════ */
+  .q-item { display: flex; align-items: center; gap: 14px; padding: 13px 22px; border-top: 1px solid var(--line-2); cursor: pointer; transition: background .12s; }
+  .q-item:hover { background: var(--surface-2); }
+  .q-item .who { flex: 1; }
+  .q-val { text-align: right; min-width: 90px; }
+  .q-val .v { font-weight: 600; white-space: nowrap; }
+  .q-val .u { font-size: 12.5px; color: var(--amber); white-space: nowrap; }
+  .q-more { justify-content: center; color: var(--brand); font-weight: 500; }
+  .empty { text-align: center; padding: 40px 24px; color: var(--text-3); }
+  .empty .chip-ic { margin: 0 auto 12px; width: 44px; height: 44px; }
+  .empty-t { font-weight: 600; color: var(--text); font-size: 15px; }
+  .empty-s { font-size: 13.5px; margin-top: 2px; }
+  .mix-row { display: grid; grid-template-columns: 130px 1fr 64px; align-items: center; gap: 12px; padding: 7px 0; font-size: 14px; }
+  .track { height: 8px; border-radius: 4px; background: var(--line-2); overflow: hidden; }
+  .track > span { display: block; height: 100%; border-radius: 4px; background: var(--brand); }
+  .mix-row .n { text-align: right; font-weight: 600; white-space: nowrap; }
+  .mix-row .n span { color: var(--text-3); font-weight: 400; font-size: 12.5px; margin-left: 4px; }
+  .lbl-sm { font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); margin: 6px 0 4px; }
+  .perf { display: flex; align-items: center; gap: 24px; }
+  .ring { position: relative; width: 124px; height: 124px; flex-shrink: 0; }
+  .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); display: block; }
+  .ring .c { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+  .ring .c b { font-size: 26px; font-weight: 600; letter-spacing: -.02em; display: block; line-height: 1.1; }
+  .ring .c span { font-size: 12px; color: var(--text-3); }
+  .perf-list { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .perf-list > div { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+  .perf-list .chip-ic { width: 28px; height: 28px; border-radius: 8px; }
+  .perf-list .chip-ic svg.ic { width: 15px; height: 15px; }
+  .perf-list b { margin-left: auto; font-weight: 600; }
+  .opp { display: flex; align-items: center; gap: 12px; padding: 12px 22px; border-top: 1px solid var(--line-2); }
+  .opp-m { flex: 1; min-width: 0; cursor: pointer; }
+  .opp-m:hover .who-n { color: var(--brand); }
+  .opp-bar { height: 5px; border-radius: 3px; background: var(--line-2); margin-top: 7px; overflow: hidden; }
+  .opp-bar span { display: block; height: 100%; background: var(--c-up); border-radius: 3px; }
+
+  /* ═════════ PATIENTS ═════════ */
+  .ptabs { display: flex; gap: 2px; padding: 0 12px; border-bottom: 1px solid var(--line-2); overflow-x: auto; scrollbar-width: none; }
+  .ptabs::-webkit-scrollbar { display: none; }
+  .ptab { position: relative; height: 52px; padding: 0 12px; display: flex; align-items: center; gap: 8px; color: var(--text-2); font-weight: 500; font-size: 14.5px; white-space: nowrap; }
+  .ptab:hover, .ptab.active { color: var(--text); }
+  .ptab.active::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px; background: var(--brand); border-radius: 2px 2px 0 0; }
+  .ptab .n { font-size: 12px; font-weight: 600; background: #F1F3F7; color: var(--text-2); border-radius: 999px; padding: 1px 7px; min-width: 22px; text-align: center; }
+  .ptab.active .n { background: var(--brand-s); color: var(--brand-t); }
+  .ptab .n.hot { background: var(--red-s); color: var(--red); }
+  .tools { display: flex; gap: 10px; padding: 14px 22px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid var(--line-2); }
+  .search { position: relative; flex: 1; min-width: 220px; max-width: 360px; }
+  .search svg.ic { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-3); pointer-events: none; }
+  .search input { width: 100%; height: 38px; border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0 12px 0 36px; font-size: 14px; outline: none; transition: all .15s; }
+  .search input:focus, .sel:focus { border-color: var(--brand); box-shadow: 0 0 0 4px rgba(58,91,217,.12); }
+  .sel { height: 38px; border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0 34px 0 12px; font-size: 14px; background-color: #fff; outline: none; appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238A94A6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center; background-size: 16px; }
+  .tools-end { margin-left: auto; font-size: 13px; color: var(--text-3); }
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  thead th { text-align: left; font-size: 12px; font-weight: 500; color: var(--text-3); letter-spacing: .06em; text-transform: uppercase; padding: 11px 14px; white-space: nowrap; border-bottom: 1px solid var(--line-2); background: var(--surface-2); }
+  thead th:first-child, tbody td:first-child { padding-left: 22px; }
+  thead th:last-child, tbody td:last-child { padding-right: 22px; }
+  th.r, td.r { text-align: right; }
+  tbody td { padding: 14px; border-bottom: 1px solid var(--line-2); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr.row { cursor: pointer; transition: background .12s; }
+  tbody tr.row:hover { background: #FAFBFC; }
+  .cyc { min-width: 140px; }
+  .cyc-bar { height: 6px; border-radius: 3px; background: var(--line-2); overflow: hidden; position: relative; }
+  .cyc-bar span { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; }
+  .cyc-t { font-size: 12.5px; color: var(--text-3); margin-top: 6px; display: flex; justify-content: space-between; gap: 8px; white-space: nowrap; }
+  .val { font-weight: 600; white-space: nowrap; }
+  .val-u { font-size: 12.5px; color: var(--amber); white-space: nowrap; }
+  .acts { display: flex; gap: 4px; justify-content: flex-end; }
+  .contact { display: inline-flex; align-items: center; gap: 7px; font-size: 13.5px; color: var(--text-2); white-space: nowrap; }
+  .contact svg.ic { width: 15px; height: 15px; }
+  .cards { display: none; }
+  .pc { padding: 16px 18px; border-top: 1px solid var(--line-2); cursor: pointer; }
+  .pc:first-child { border-top: 0; }
+  .pc-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .pc-top .who { flex: 1; }
+  .badge { flex-shrink: 0; }
+  .pc-mid { margin: 12px 0; }
+  .pc-bot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+
+  /* ═════════ CHARTS / FORECAST ═════════ */
+  .chart-box { position: relative; padding: 4px 18px 16px; }
+  .chart { display: block; width: 100%; height: 280px; }
+  .chart.sm { height: 210px; }
+  .legend { display: flex; gap: 18px; font-size: 13px; color: var(--text-2); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 7px; vertical-align: -1px; }
+  .tip { position: absolute; pointer-events: none; background: var(--ink); color: #fff; border-radius: 10px; padding: 10px 12px; font-size: 13px; line-height: 1.55; white-space: nowrap; opacity: 0; transition: opacity .1s; z-index: 5; box-shadow: var(--sh-3); }
+  .tip.show { opacity: 1; }
+  .tip b { font-weight: 600; }
+  .tip .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 7px; }
+  .tip .mut { color: rgba(255,255,255,.6); }
+  details.formulas summary { list-style: none; cursor: pointer; }
+  details.formulas summary::-webkit-details-marker { display: none; }
+  details.formulas .chev { transition: transform .2s; color: var(--text-3); }
+  details.formulas[open] .chev { transform: rotate(180deg); }
+  .f-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 0 22px 22px; }
+  .f-item { border: 1px solid var(--line-2); background: var(--surface-2); border-radius: var(--r); padding: 14px 16px; }
+  .f-item h4 { font-size: 14px; font-weight: 600; }
+  .f-item p { font-size: 13.5px; color: var(--text-2); margin-top: 6px; }
+  .f-item code { font-family: inherit; font-size: 13px; color: var(--brand-t); background: var(--brand-s); padding: 1px 6px; border-radius: 5px; }
+
+  /* ═════════ DRAWER ═════════ */
+  .scrim { position: fixed; inset: 0; background: rgba(11,18,32,.4); backdrop-filter: blur(2px); z-index: 140; opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .scrim.open { opacity: 1; pointer-events: auto; }
+  .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 500px; max-width: 100%; background: var(--surface); z-index: 150; transform: translateX(104%); transition: transform .28s cubic-bezier(.32,.72,0,1); display: flex; flex-direction: column; box-shadow: var(--sh-3); }
+  .drawer.open { transform: none; }
+  .dr-head { background: radial-gradient(500px 200px at 100% 0%, rgba(58,91,217,.4), transparent 70%), var(--ink); color: #fff; padding: 22px 24px 24px; }
+  .dr-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .dr-close { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; color: var(--on-ink-2); border: 1px solid var(--ink-line); flex-shrink: 0; }
+  .dr-close:hover { color: #fff; background: rgba(255,255,255,.08); }
+  .dr-id { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .dr-id .av { width: 52px; height: 52px; font-size: 18px; }
+  .dr-name { font-size: 22px; font-weight: 500; letter-spacing: -.01em; line-height: 1.2; }
+  .dr-meta { font-size: 13.5px; color: var(--on-ink-2); margin-top: 2px; }
+  .dr-meta a:hover { color: #fff; text-decoration: underline; }
+  .dr-cycle { display: flex; align-items: center; gap: 18px; margin-top: 20px; padding: 16px; border-radius: 14px; background: rgba(255,255,255,.05); border: 1px solid var(--ink-line); }
+  .dr-cycle .ring { width: 84px; height: 84px; }
+  .dr-cycle .ring .c b { font-size: 19px; color: #fff; }
+  .dr-cycle .ring .c span { color: var(--on-ink-3); font-size: 11px; }
+  .dr-ci { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; min-width: 0; }
+  .dr-ci .l { font-size: 12px; color: var(--on-ink-3); }
+  .dr-ci .v { font-size: 14.5px; font-weight: 500; }
+  .dr-body { flex: 1; overflow-y: auto; }
+  .dr-sec { padding: 20px 24px; border-bottom: 1px solid var(--line-2); }
+  .dr-sec-t { font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); margin-bottom: 12px; }
+  .money { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line-2); border-radius: var(--r); overflow: hidden; }
+  .money > div { padding: 12px 14px; border-left: 1px solid var(--line-2); min-width: 0; }
+  .money > div:first-child { border-left: 0; }
+  .money .l { font-size: 12px; color: var(--text-3); }
+  .money .v { font-size: 17px; font-weight: 600; margin-top: 2px; white-space: nowrap; }
+  .kv { display: grid; grid-template-columns: 130px 1fr; gap: 9px 14px; font-size: 14px; }
+  .kv dt { color: var(--text-3); }
+  .kv dd { font-weight: 500; }
+  .med { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: 10px; }
+  .med + .med { margin-top: 8px; }
+  .med .chip-ic { width: 32px; height: 32px; border-radius: 8px; }
+  .med .chip-ic svg.ic { width: 16px; height: 16px; }
+  .med-n { font-weight: 500; font-size: 14px; }
+  .med-q { font-size: 12.5px; color: var(--text-3); }
+  .med-s { margin-left: auto; font-size: 12.5px; font-weight: 500; white-space: nowrap; }
+  .src-us { color: var(--brand); } .src-hospital { color: var(--teal); } .src-partial { color: var(--amber); }
+  .tl { position: relative; padding-left: 38px; min-height: 28px; }
+  .tl + .tl { margin-top: 16px; }
+  .tl::before { content: ''; position: absolute; left: 13px; top: 30px; bottom: -14px; width: 1px; background: var(--line); }
+  .tl:last-child::before { display: none; }
+  .tl .dot { position: absolute; left: 0; top: 0; width: 27px; height: 27px; border-radius: 50%; display: grid; place-items: center; }
+  .tl .dot svg.ic { width: 14px; height: 14px; }
+  .tl-h { font-size: 14px; font-weight: 600; }
+  .tl-h span { color: var(--text-3); font-weight: 400; }
+  .tl-b { font-size: 13.5px; color: var(--text-2); margin-top: 2px; }
+  .file { display: flex; align-items: center; gap: 10px; padding: 9px 10px 9px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 13.5px; background: #fff; }
+  .file + .file { margin-top: 8px; }
+  .file svg.ic { color: var(--text-3); width: 17px; height: 17px; }
+  .file-n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file.link { cursor: pointer; }
+  .file.link:hover { border-color: var(--brand); color: var(--brand); }
+  .file.link:hover svg.ic { color: var(--brand); }
+  .dr-foot { display: flex; gap: 8px; padding: 16px 24px; border-top: 1px solid var(--line-2); background: var(--surface); padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+  .dr-foot .btn { flex: 1; height: 42px; }
+  .dr-foot .btn.sq { flex: 0 0 42px; padding: 0; }
+
+  /* ═════════ MODALS ═════════ */
+  .overlay { position: fixed; inset: 0; z-index: 200; background: rgba(11,18,32,.5); backdrop-filter: blur(3px); display: none; align-items: center; justify-content: center; padding: 24px; }
+  .overlay.open { display: flex; animation: fade .15s ease; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  .modal { background: var(--surface); border-radius: 20px; width: 780px; max-width: 100%; max-height: calc(100vh - 48px); display: flex; flex-direction: column; box-shadow: var(--sh-3); animation: rise .2s cubic-bezier(.32,.72,0,1); overflow: hidden; }
+  .modal.md { width: 500px; }
+  .modal.sm { width: 440px; }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
+  .m-head { display: flex; gap: 14px; align-items: flex-start; padding: 22px 24px 18px; border-bottom: 1px solid var(--line-2); }
+  .m-head .chip-ic { width: 42px; height: 42px; border-radius: 12px; }
+  .m-t { font-size: 19px; font-weight: 600; letter-spacing: -.01em; }
+  .m-s { font-size: 13.5px; color: var(--text-3); margin-top: 1px; }
+  .m-head .ib { margin-left: auto; }
+  .m-body { padding: 4px 24px 24px; overflow-y: auto; }
+  .m-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 16px 24px; border-top: 1px solid var(--line-2); background: var(--surface-2); }
+  .fs { display: flex; align-items: center; gap: 10px; margin: 22px 0 12px; }
+  .fs-n { width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: #fff; font-size: 11.5px; font-weight: 600; display: grid; place-items: center; }
+  .fs-t { font-size: 14.5px; font-weight: 600; }
+  .fs::after { content: ''; flex: 1; height: 1px; background: var(--line-2); }
+  .fg { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+  .fg.three { grid-template-columns: repeat(3, 1fr); }
+  .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .field > label, .lbl { font-size: 13px; font-weight: 500; color: var(--text-2); }
+  .req { color: var(--red); }
+  .in, .ta, .m-body .sel { width: 100%; height: 42px; border: 1px solid var(--line); border-radius: 10px; background-color: #fff; padding: 0 13px; font-size: 14.5px; outline: none; transition: border-color .15s, box-shadow .15s; }
+  .m-body .sel { padding-right: 34px; }
+  .ta { height: auto; min-height: 88px; padding: 11px 13px; resize: vertical; }
+  .in:focus, .ta:focus { border-color: var(--brand); box-shadow: 0 0 0 4px rgba(58,91,217,.12); }
+  .in.bad { border-color: var(--red); box-shadow: 0 0 0 4px rgba(196,50,10,.1); }
+  .hint { font-size: 12.5px; color: var(--text-3); }
+  .hint b { color: var(--text); font-weight: 600; }
+  .calc { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 14px; border-radius: 12px; overflow: hidden; background: var(--ink); color: #fff; }
+  .calc > div { padding: 14px 16px; border-left: 1px solid var(--ink-line); min-width: 0; }
+  .calc > div:first-child { border-left: 0; }
+  .calc .l { font-size: 12px; color: var(--on-ink-3); }
+  .calc .v { font-size: 20px; font-weight: 600; letter-spacing: -.01em; margin-top: 2px; white-space: nowrap; }
+  .calc .f { font-size: 12px; color: var(--on-ink-2); margin-top: 2px; }
+  .calc .v.up { color: #F5C26B; }
+  .calc .v.mint { color: var(--mint); }
+  .med-hd, .med-row { display: grid; grid-template-columns: 1fr 130px 160px 34px; gap: 8px; align-items: center; }
+  .med-hd { font-size: 12.5px; color: var(--text-3); margin-bottom: 6px; }
+  .med-row + .med-row { margin-top: 8px; }
+  .add { margin-top: 10px; height: 40px; width: 100%; border: 1px dashed #CBD1DC; border-radius: 10px; color: var(--brand); font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 7px; transition: all .15s; }
+  .add:hover { border-color: var(--brand); background: var(--brand-s); }
+  .add svg.ic { width: 16px; height: 16px; }
+  .drop { border: 1.5px dashed #CBD1DC; border-radius: 12px; padding: 22px; text-align: center; cursor: pointer; transition: all .15s; }
+  .drop:hover, .drop.drag { border-color: var(--brand); background: var(--brand-s); }
+  .drop .chip-ic { margin: 0 auto 8px; }
+  .drop-t { font-weight: 500; }
+  .drop-t span { color: var(--brand); }
+  .drop-s { font-size: 12.5px; color: var(--text-3); margin-top: 2px; }
+  .files { margin-top: 10px; }
+  .outs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .out { border: 1px solid var(--line); border-radius: 12px; padding: 16px 8px; display: flex; flex-direction: column; align-items: center; gap: 8px; font-weight: 500; font-size: 14px; color: var(--text-2); transition: all .15s; }
+  .out .chip-ic { width: 38px; height: 38px; }
+  .out:hover { border-color: #C9CFDA; }
+  .out.sel-won { border-color: var(--green); background: var(--green-s); color: var(--green); box-shadow: 0 0 0 1px var(--green); }
+  .out.sel-miss { border-color: var(--violet); background: var(--violet-s); color: var(--violet); box-shadow: 0 0 0 1px var(--violet); }
+  .out.sel-no { border-color: var(--red); background: var(--red-s); color: var(--red); box-shadow: 0 0 0 1px var(--red); }
+
+  /* ═════════ FOOTER / TOAST / RESPONSIVE ═════════ */
+  .foot { border-top: 1px solid var(--line); padding: 22px 0 28px; color: var(--text-3); font-size: 13px; }
+  .foot .container { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .foot strong { color: var(--text-2); font-weight: 600; }
+  .foot .fb { display: flex; align-items: center; gap: 10px; }
+  .foot .fb svg { width: 22px; height: 22px; }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 16px); background: var(--ink); color: #fff; border-radius: 12px; padding: 12px 18px 12px 14px; display: flex; align-items: center; gap: 10px; font-size: 14px; box-shadow: var(--sh-3); z-index: 400; opacity: 0; pointer-events: none; transition: all .22s cubic-bezier(.32,.72,0,1); max-width: calc(100vw - 32px); }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast.ok svg.ic { color: var(--mint); }
+  .toast.warn svg.ic { color: #F5C26B; }
+  .bottom-nav, .fab { display: none; }
+
+  @media (max-width: 1200px) {
+    .nav-search { width: 200px; }
+    .g-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .g-main { grid-template-columns: minmax(0, 1fr); }
+    .g-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .f-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tab .long { display: none; }
+  }
+  @media (max-width: 1000px) {
+    .tabs, .nav-search, .nav-right .btn-light, .nav-btn .lbl { display: none; }
+    .container { padding: 0 16px; }
+    .topnav .container { height: 58px; }
+    .hero .container { padding-top: 22px; padding-bottom: 82px; }
+    .hero h1 { font-size: 27px; }
+    .hero-sub { font-size: 14.5px; }
+    .hero-stats { width: 100%; overflow-x: auto; scrollbar-width: none; }
+    .hero-stat { padding: 0 16px; }
+    .hero-stat .v { font-size: 20px; }
+    .page { padding-bottom: 110px; }
+    .grid { gap: 12px; }
+    .mt { margin-top: 12px; }
+    .kpi { padding: 15px 16px; }
+    .kpi-v { font-size: 24px; margin-top: 8px; }
+    .kpi .chip-ic { width: 30px; height: 30px; }
+    .kpi .chip-ic svg.ic { width: 16px; height: 16px; }
+    .kpi-l, .kpi-f { font-size: 12.5px; }
+    .g-3, .f-grid { grid-template-columns: minmax(0, 1fr); }
+    .tbl-wrap.patients { display: none; }
+    .cards { display: block; }
+    .search { max-width: none; min-width: 100%; }
+    .tools { padding: 12px 16px; }
+    .tools .sel { flex: 1; min-width: 0; }
+    .tools-end { display: none; }
+    .q-reason { display: none; }
+    .card-h, .q-item, .opp { padding-left: 16px; padding-right: 16px; }
+    .card-b { padding: 4px 16px 18px; }
+    .f-grid { padding: 0 16px 16px; }
+    .fg, .fg.three { grid-template-columns: 1fr; }
+    .med-hd { display: none; }
+    .med-row { grid-template-columns: 1fr 1fr 34px; }
+    .med-row .sel { grid-column: 1 / 3; }
+    .med-row .ib { grid-row: 1; grid-column: 3; }
+    .calc { grid-template-columns: 1fr; }
+    .calc > div { border-left: 0; border-top: 1px solid var(--ink-line); }
+    .calc > div:first-child { border-top: 0; }
+    .overlay { padding: 0; align-items: flex-end; }
+    .modal, .modal.md, .modal.sm { width: 100%; border-radius: 20px 20px 0 0; max-height: 94vh; }
+    .m-foot { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+    .perf { gap: 18px; }
+    .ring { width: 104px; height: 104px; }
+    .dr-ci { grid-template-columns: 1fr; gap: 6px; }
+    .bottom-nav { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 70; background: rgba(255,255,255,.96); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
+    .bottom-nav button { flex: 1; height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11.5px; font-weight: 500; color: var(--text-3); position: relative; }
+    .bottom-nav button svg.ic { width: 21px; height: 21px; }
+    .bottom-nav button.active { color: var(--brand); }
+    .bottom-nav .pip { position: absolute; top: 8px; left: calc(50% + 5px); min-width: 17px; height: 17px; font-size: 10.5px; }
+    .fab { display: grid; place-items: center; position: fixed; right: 16px; bottom: calc(78px + env(safe-area-inset-bottom)); width: 56px; height: 56px; border-radius: 18px; background: var(--brand); color: #fff; z-index: 71; box-shadow: 0 12px 28px -6px rgba(58,91,217,.55); }
+    .fab svg.ic { width: 24px; height: 24px; stroke-width: 2.2; }
+    .toast { bottom: calc(90px + env(safe-area-inset-bottom)); }
+    .foot { display: none; }
+  }
+  @media (max-width: 520px) {
+    .brand-tag { display: none; }
+    .money .v { font-size: 15px; }
+    .kv { grid-template-columns: 110px 1fr; }
+    .mix-row { grid-template-columns: 104px 1fr 58px; gap: 10px; }
+    .perf { flex-direction: column; align-items: stretch; }
+    .perf .ring { align-self: center; }
+    .dr-cycle { gap: 14px; padding: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═════════ TOP NAV ═════════ -->
+<header class="topnav">
+  <div class="container">
+    <a class="brand" href="#overview" data-nav="overview" aria-label="ChronicRx home">
+      <svg viewBox="0 0 36 36" aria-hidden="true">
+        <rect width="36" height="36" rx="10" fill="#3A5BD9"/>
+        <g transform="rotate(-45 18 18)">
+          <rect x="7" y="13" width="22" height="10" rx="5" fill="none" stroke="#fff" stroke-width="2.2"/>
+          <path d="M12 13h6v10h-6a5 5 0 0 1 0-10z" fill="#34D399"/>
+        </g>
+      </svg>
+      <div>
+        <div class="wordmark">Chronic<b>Rx</b></div>
+        <div class="brand-tag">Refill Intelligence</div>
+      </div>
+    </a>
+
+    <nav class="tabs" aria-label="Primary">
+      <a href="#overview" class="tab" data-nav="overview"><i data-ic="grid"></i>Overview</a>
+      <a href="#patients" class="tab" data-nav="patients:all"><i data-ic="users"></i>Patients<span class="pip" data-pip="urgent" hidden></span></a>
+      <a href="#forecast" class="tab" data-nav="forecast"><i data-ic="trend"></i><span>Revenue<span class="long"> forecast</span></span></a>
+      <a href="#calls" class="tab" data-nav="calls"><i data-ic="headset"></i>Call center</a>
+    </nav>
+
+    <div class="nav-right">
+      <label class="nav-search">
+        <i data-ic="search"></i>
+        <input id="navSearch" type="search" placeholder="Search patients" autocomplete="off" aria-label="Search patients">
+        <kbd>/</kbd>
+      </label>
+      <div class="menu-wrap">
+        <button class="nav-btn" id="menuBtn" aria-haspopup="true" aria-expanded="false" aria-label="Data menu"><i data-ic="database"></i><span class="lbl">Data</span></button>
+        <div class="menu" id="menu" role="menu">
+          <button data-act="export" role="menuitem"><i data-ic="download"></i><div>Export to CSV<div class="m-sub">Spreadsheet of all patients</div></div></button>
+          <button data-act="backup" role="menuitem"><i data-ic="save"></i><div>Download backup<div class="m-sub">All data including documents</div></div></button>
+          <button data-act="restore" role="menuitem"><i data-ic="upload"></i><div>Restore from backup<div class="m-sub">Replaces the current data</div></div></button>
+          <hr>
+          <div class="credits">Created by <strong>Dr. Mohamed Baydon</strong><br>Area Supervisor <strong>Dr. Mahmoud Abdelgalil</strong></div>
+        </div>
+      </div>
+      <button class="btn-light" data-act="add"><i data-ic="plus"></i>New patient</button>
+    </div>
+  </div>
+</header>
+
+<!-- ═════════ HERO ═════════ -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-l">
+      <div class="eyebrow"><span class="live"></span><span id="heroEyebrow"></span></div>
+      <h1 id="heroTitle"></h1>
+      <p class="hero-sub" id="heroSub"></p>
+    </div>
+    <div id="heroRight"></div>
+  </div>
+</section>
+
+<!-- ═════════ PAGES ═════════ -->
+<main class="page">
+  <div class="container">
+
+    <!-- OVERVIEW -->
+    <section id="v-overview" hidden>
+      <div class="grid g-4" id="ovKpis"></div>
+      <div class="grid g-main mt">
+        <div class="card">
+          <div class="card-h">
+            <div><div class="card-t">Priority call queue</div><div class="card-s">Overdue first, then due today, call-backs and the week ahead</div></div>
+            <a href="#patients" class="link" data-nav="patients:all">All patients<i data-ic="arrowRight"></i></a>
+          </div>
+          <div id="ovQueue"></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><div><div class="card-t">Refills due · next 14 days</div><div class="card-s">Patients reaching their refill date each day</div></div></div>
+          <div class="chart-box" id="dueWrap">
+            <svg class="chart sm" id="dueChart" role="img" aria-label="Refills due per day"></svg>
+            <div class="tip" id="dueTip"></div>
+          </div>
+        </div>
+      </div>
+      <div class="grid g-3 mt">
+        <div class="card">
+          <div class="card-h"><div><div class="card-t">Upsell opportunities</div><div class="card-s">Largest gap to a full prescription</div></div><a href="#patients/partial" class="link" data-nav="patients:partial">View all<i data-ic="arrowRight"></i></a></div>
+          <div id="ovOpps"></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><div><div class="card-t">Call performance</div><div class="card-s">Last 30 days</div></div><a href="#calls" class="link" data-nav="calls">Call center<i data-ic="arrowRight"></i></a></div>
+          <div class="card-b" id="ovPerf"></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><div><div class="card-t">Portfolio mix</div><div class="card-s">Patients by dispense type and refill cycle</div></div></div>
+          <div class="card-b" id="ovMix"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PATIENTS -->
+    <section id="v-patients" hidden>
+      <div class="grid g-4" id="ptKpis"></div>
+      <div class="card mt">
+        <div class="ptabs">
+          <button class="ptab" data-nav="patients:all">All patients <span class="n" data-count="all"></span></button>
+          <button class="ptab" data-nav="patients:overdue">Overdue <span class="n hot" data-count="overdue"></span></button>
+          <button class="ptab" data-nav="patients:today">Due today <span class="n" data-count="today"></span></button>
+          <button class="ptab" data-nav="patients:soon">Next 7 days <span class="n" data-count="soon"></span></button>
+          <button class="ptab" data-nav="patients:partial">Upsell <span class="n" data-count="partial"></span></button>
+          <button class="ptab" data-nav="patients:callback">Call-backs <span class="n" data-count="callback"></span></button>
+        </div>
+        <div class="tools">
+          <label class="search"><i data-ic="search"></i><input id="ptSearch" type="search" placeholder="Name, ID, phone, condition, insurer" autocomplete="off" aria-label="Search patients"></label>
+          <select class="sel" id="ptType" aria-label="Dispense type">
+            <option value="">All dispense types</option>
+            <option value="full">Full Rx</option>
+            <option value="partial">Partial Rx</option>
+            <option value="none">Hospital Rx copy</option>
+          </select>
+          <select class="sel" id="ptSort" aria-label="Sort order">
+            <option value="urgency">Sort: Most urgent</option>
+            <option value="upsell">Sort: Upsell value</option>
+            <option value="value">Sort: Refill value</option>
+            <option value="name">Sort: Name A–Z</option>
+          </select>
+          <div class="tools-end" id="ptCount"></div>
+        </div>
+        <div class="tbl-wrap patients">
+          <table>
+            <thead><tr><th>Patient</th><th>Prescription</th><th>Refill cycle</th><th>Next due</th><th>Last contact</th><th class="r">Value / refill</th><th class="r" aria-label="Actions"></th></tr></thead>
+            <tbody id="ptBody"></tbody>
+          </table>
+        </div>
+        <div class="cards" id="ptCards"></div>
+      </div>
+    </section>
+
+    <!-- FORECAST -->
+    <section id="v-forecast" hidden>
+      <div class="grid g-3" id="fcKpis"></div>
+      <div class="card mt">
+        <div class="card-h b">
+          <div><div class="card-t">Expected refill revenue</div><div class="card-s" id="fcChartSub"></div></div>
+          <div class="legend"><span><i style="background:var(--c-base)"></i>Baseline</span><span><i style="background:var(--c-up)"></i>Upsell potential</span></div>
+        </div>
+        <div class="chart-box" id="fcWrap" style="padding-top:18px">
+          <svg class="chart" id="fcChart" role="img" aria-label="Expected revenue by period"></svg>
+          <div class="tip" id="fcTip"></div>
+        </div>
+      </div>
+      <div class="grid g-main mt">
+        <div class="card">
+          <div class="card-h b"><div><div class="card-t">Breakdown by dispense type</div><div class="card-s">Refills expected inside the selected window</div></div></div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>Dispense type</th><th class="r">Patients</th><th class="r">Refills</th><th class="r">Baseline</th><th class="r">Upsell</th><th class="r">Potential</th></tr></thead>
+              <tbody id="fcType"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h b"><div><div class="card-t">Where the upside is</div><div class="card-s">Top patients by upsell per refill</div></div></div>
+          <div id="fcOpps"></div>
+        </div>
+      </div>
+      <div class="card mt">
+        <details class="formulas">
+          <summary class="card-h">
+            <div style="display:flex;gap:14px;align-items:center">
+              <span class="chip-ic x-brand"><i data-ic="sigma"></i></span>
+              <div><div class="card-t">Methodology</div><div class="card-s">How every figure in ChronicRx is calculated</div></div>
+            </div>
+            <i data-ic="chevDown" class="chev"></i>
+          </summary>
+          <div class="f-grid">
+            <div class="f-item"><h4>Next due date</h4><p><code>Last dispense date + Refill cycle (days)</code></p></div>
+            <div class="f-item"><h4>Refill status</h4><p>Days to due below 0 → <b>Overdue</b> · 0 → <b>Due today</b> · 1–7 → <b>Next 7 days</b> · above 7 → <b>On track</b></p></div>
+            <div class="f-item"><h4>Cycle progress</h4><p><code>Days since last dispense ÷ Refill cycle</code>, capped at 100%.</p></div>
+            <div class="f-item"><h4>Upsell per refill</h4><p><code>Full Rx value − Last dispensed</code> when the dispense type is Partial or Hospital copy and the full value is higher; otherwise 0.</p></div>
+            <div class="f-item"><h4>Baseline &amp; potential</h4><p><code>Baseline = Last dispensed</code> (Full value if the Rx is Full and no last value was entered). <code>Potential = Baseline + Upsell</code>.</p></div>
+            <div class="f-item"><h4>Refills in window</h4><p>Dates <code>First, First + cycle, First + 2×cycle …</code> inside the window, where <code>First</code> is the later of Next due and Today.</p></div>
+            <div class="f-item"><h4>Monthly run-rate</h4><p><code>Σ Revenue per refill × 30 ÷ Refill cycle</code> across all patients.</p></div>
+            <div class="f-item"><h4>Revenue at risk</h4><p><code>Σ Baseline</code> of every overdue patient.</p></div>
+            <div class="f-item"><h4>Call conversion</h4><p><code>"Patient coming" calls ÷ All calls × 100</code> over the last 30 days.</p></div>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- CALL CENTER -->
+    <section id="v-calls" hidden>
+      <div class="grid g-4" id="clKpis"></div>
+      <div class="card mt">
+        <div class="card-h b"><div><div class="card-t">Calls logged</div><div class="card-s" id="clSub"></div></div></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Patient</th><th>Outcome</th><th>Note</th><th>Next follow-up</th><th class="r">Value / refill</th></tr></thead>
+            <tbody id="clBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card mt">
+        <div class="card-h b"><div><div class="card-t">Call-backs due</div><div class="card-s">Follow-up date from the latest call falls on or before the selected day</div></div></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Patient</th><th>Follow-up date</th><th>Last outcome</th><th>Refill status</th><th class="r" aria-label="Actions"></th></tr></thead>
+            <tbody id="cbBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="container">
+    <div class="fb">
+      <svg viewBox="0 0 36 36" aria-hidden="true"><rect width="36" height="36" rx="10" fill="#0B1220"/><g transform="rotate(-45 18 18)"><rect x="7" y="13" width="22" height="10" rx="5" fill="none" stroke="#fff" stroke-width="2.2"/><path d="M12 13h6v10h-6a5 5 0 0 1 0-10z" fill="#34D399"/></g></svg>
+      <span><strong>ChronicRx</strong> · Refill Intelligence Platform</span>
+    </div>
+    <div>Created by <strong>Dr. Mohamed Baydon</strong> · Area Supervisor <strong>Dr. Mahmoud Abdelgalil</strong></div>
+  </div>
+</footer>
+
+<nav class="bottom-nav" aria-label="Primary">
+  <button data-nav="overview"><i data-ic="grid"></i>Overview</button>
+  <button data-nav="patients:all"><i data-ic="users"></i>Patients<span class="pip" data-pip="urgent" hidden></span></button>
+  <button data-nav="forecast"><i data-ic="trend"></i>Forecast</button>
+  <button data-nav="calls"><i data-ic="headset"></i>Calls</button>
+</nav>
+<button class="fab" data-act="add" aria-label="New patient"><i data-ic="plus"></i></button>
+
+<!-- ═════════ DRAWER ═════════ -->
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true" aria-label="Patient profile">
+  <div class="dr-head" id="drHead"></div>
+  <div class="dr-body" id="drBody"></div>
+  <div class="dr-foot">
+    <button class="btn btn-brand" data-dr="call"><i data-ic="phone"></i>Log call</button>
+    <button class="btn" data-dr="refill"><i data-ic="package"></i>Record refill</button>
+    <button class="btn sq" data-dr="edit" title="Edit" aria-label="Edit"><i data-ic="edit"></i></button>
+    <button class="btn sq btn-ghost-danger" data-dr="delete" title="Delete" aria-label="Delete"><i data-ic="trash"></i></button>
+  </div>
+</aside>
+
+<!-- ═════════ PATIENT FORM ═════════ -->
+<div class="overlay" id="pm">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pmT">
+    <div class="m-head">
+      <span class="chip-ic x-brand"><i data-ic="userPlus"></i></span>
+      <div><div class="m-t" id="pmT">New patient</div><div class="m-s">Chronic prescription follow-up record</div></div>
+      <button class="ib" data-close aria-label="Close"><i data-ic="x"></i></button>
+    </div>
+    <div class="m-body">
+      <div class="fs"><span class="fs-n">1</span><span class="fs-t">Patient details</span></div>
+      <div class="fg">
+        <div class="field"><label for="f_name">Full name <span class="req">*</span></label><input class="in" id="f_name" placeholder="e.g. Ahmed Hassan"></div>
+        <div class="field"><label for="f_id">Patient ID / MRN</label><input class="in" id="f_id" placeholder="Auto-generated if blank"></div>
+        <div class="field"><label for="f_phone">Phone <span class="req">*</span></label><input class="in" id="f_phone" type="tel" placeholder="e.g. 055 123 4567"></div>
+        <div class="field"><label for="f_insurance">Insurance / plan</label><input class="in" id="f_insurance" placeholder="e.g. Bupa Arabia"></div>
+        <div class="field"><label for="f_condition">Chronic condition</label><input class="in" id="f_condition" placeholder="e.g. Diabetes, Hypertension"></div>
+        <div class="field"><label for="f_hospital">Hospital / clinic</label><input class="in" id="f_hospital" placeholder="e.g. King Fahad Hospital"></div>
+      </div>
+      <div class="fs"><span class="fs-n">2</span><span class="fs-t">Dispense cycle</span></div>
+      <div class="fg three">
+        <div class="field"><label for="f_lastDate">Last dispense <span class="req">*</span></label><input class="in" id="f_lastDate" type="date"></div>
+        <div class="field"><label for="f_cycle">Refill cycle</label>
+          <select class="sel" id="f_cycle"><option value="30">30 days</option><option value="60">60 days</option><option value="90">90 days</option><option value="180">180 days</option></select></div>
+        <div class="field"><label for="f_rxtype">Dispense type</label>
+          <select class="sel" id="f_rxtype"><option value="full">Full Rx — by us</option><option value="partial">Partial Rx — part by us</option><option value="none">Hospital Rx copy held</option></select></div>
+      </div>
+      <div class="hint" id="f_due" style="margin-top:10px"></div>
+      <div class="fs"><span class="fs-n">3</span><span class="fs-t">Medicines</span></div>
+      <div class="med-hd"><span>Medicine</span><span>Qty / strength</span><span>Dispensed by</span><span></span></div>
+      <div id="medRows"></div>
+      <button class="add" type="button" id="addMed"><i data-ic="plus"></i>Add medicine</button>
+      <div class="fs"><span class="fs-n">4</span><span class="fs-t">Revenue</span></div>
+      <div class="fg">
+        <div class="field"><label for="f_lastRev">Last dispensed value (SAR)</label><input class="in" id="f_lastRev" type="number" min="0" step="0.01" placeholder="0.00"><div class="hint">What we actually dispensed last time</div></div>
+        <div class="field"><label for="f_fullRev">Full prescription value (SAR)</label><input class="in" id="f_fullRev" type="number" min="0" step="0.01" placeholder="0.00"><div class="hint">If every item is dispensed by us</div></div>
+      </div>
+      <div class="calc">
+        <div><div class="l">Baseline per refill</div><div class="v" id="c_base"></div><div class="f" id="c_baseF"></div></div>
+        <div><div class="l">Upsell per refill</div><div class="v up" id="c_up"></div><div class="f" id="c_upF"></div></div>
+        <div><div class="l">Estimated next refill</div><div class="v mint" id="c_est"></div><div class="f" id="c_estF"></div></div>
+      </div>
+      <div class="fs"><span class="fs-n">5</span><span class="fs-t">Documents &amp; notes</span></div>
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="Upload documents">
+        <span class="chip-ic x-brand"><i data-ic="paperclip"></i></span>
+        <div class="drop-t"><span>Click to upload</span> or drag files here</div>
+        <div class="drop-s">Prescription, insurance card, referral · PDF, JPG, PNG up to 5 MB</div>
+      </div>
+      <input type="file" id="fileIn" multiple accept=".pdf,.jpg,.jpeg,.png" hidden>
+      <div class="files" id="fileList"></div>
+      <div class="field" style="margin-top:14px"><label for="f_notes">Notes</label><textarea class="ta" id="f_notes" placeholder="Allergies, preferences, items to request next time"></textarea></div>
+    </div>
+    <div class="m-foot">
+      <button class="btn btn-ghost-danger" id="pmDel" style="margin-right:auto"><i data-ic="trash"></i>Delete</button>
+      <button class="btn" data-close>Cancel</button>
+      <button class="btn btn-brand" id="pmSave"><i data-ic="check"></i>Save patient</button>
+    </div>
+  </div>
+</div>
+
+<!-- CALL -->
+<div class="overlay" id="cm">
+  <div class="modal md" role="dialog" aria-modal="true" aria-label="Log follow-up call">
+    <div class="m-head">
+      <span class="chip-ic x-brand"><i data-ic="phone"></i></span>
+      <div><div class="m-t">Log follow-up call</div><div class="m-s" id="cmS"></div></div>
+      <button class="ib" data-close aria-label="Close"><i data-ic="x"></i></button>
+    </div>
+    <div class="m-body">
+      <div class="lbl" style="margin:18px 0 8px">Outcome <span class="req">*</span></div>
+      <div class="outs">
+        <button class="out" data-out="won"><span class="chip-ic x-green"><i data-ic="checkCircle"></i></span>Patient coming</button>
+        <button class="out" data-out="miss"><span class="chip-ic x-violet"><i data-ic="calendar"></i></span>Rescheduled</button>
+        <button class="out" data-out="no"><span class="chip-ic x-red"><i data-ic="phoneOff"></i></span>No answer</button>
+      </div>
+      <div class="field" style="margin-top:16px"><label for="cmNote">Note</label><textarea class="ta" id="cmNote" placeholder="e.g. Confirmed Thursday, will take all items on the prescription"></textarea></div>
+      <div class="field" style="margin-top:14px"><label for="cmNext">Next follow-up</label><input class="in" id="cmNext" type="date"><div class="hint">The patient appears under Call-backs on this date</div></div>
+    </div>
+    <div class="m-foot">
+      <button class="btn" data-close>Cancel</button>
+      <button class="btn btn-brand" id="cmSave"><i data-ic="check"></i>Save call</button>
+    </div>
+  </div>
+</div>
+
+<!-- REFILL -->
+<div class="overlay" id="rm">
+  <div class="modal md" role="dialog" aria-modal="true" aria-label="Record refill">
+    <div class="m-head">
+      <span class="chip-ic x-green"><i data-ic="package"></i></span>
+      <div><div class="m-t">Record refill</div><div class="m-s" id="rmS"></div></div>
+      <button class="ib" data-close aria-label="Close"><i data-ic="x"></i></button>
+    </div>
+    <div class="m-body">
+      <div class="fg" style="margin-top:18px">
+        <div class="field"><label for="rmDate">Dispense date</label><input class="in" id="rmDate" type="date"></div>
+        <div class="field"><label for="rmAmt">Amount dispensed (SAR)</label><input class="in" id="rmAmt" type="number" min="0" step="0.01"></div>
+      </div>
+      <div class="field" style="margin-top:14px"><label for="rmType">Dispense type</label>
+        <select class="sel" id="rmType"><option value="full">Full Rx — by us</option><option value="partial">Partial Rx — part by us</option><option value="none">Hospital Rx copy held</option></select></div>
+      <div class="hint" id="rmHint" style="margin-top:12px"></div>
+    </div>
+    <div class="m-foot">
+      <button class="btn" data-close>Cancel</button>
+      <button class="btn btn-brand" id="rmSave"><i data-ic="check"></i>Record refill</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM -->
+<div class="overlay" id="cf">
+  <div class="modal sm" role="alertdialog" aria-modal="true" aria-labelledby="cfT">
+    <div class="m-head" style="border-bottom:0">
+      <span class="chip-ic x-red"><i data-ic="trash"></i></span>
+      <div><div class="m-t" id="cfT"></div><div class="m-s" id="cfS"></div></div>
+    </div>
+    <div class="m-foot">
+      <button class="btn" data-close>Cancel</button>
+      <button class="btn btn-danger" id="cfOk">Delete permanently</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="restoreIn" accept=".json,application/json" hidden>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+// ═════════ ICONS ═════════
+const ICONS = {
+  grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  userPlus: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>',
+  trend: '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
+  headset: '<path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 14v3a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2z"/><path d="M3 14v3a2 2 0 0 0 2 2h1v-6H5a2 2 0 0 0-2 2z"/><path d="M18 19a3 3 0 0 1-3 3h-3"/>',
+  alert: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  banknote: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
+  phone: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  phoneIn: '<polyline points="16 2 16 8 22 8"/><line x1="22" y1="2" x2="16" y2="8"/><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  phoneOff: '<path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/><line x1="22" y1="2" x2="2" y2="22"/>',
+  plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  minus: '<line x1="5" y1="12" x2="19" y2="12"/>',
+  search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+  edit: '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>',
+  trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>',
+  x: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+  upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
+  save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
+  database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>',
+  paperclip: '<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
+  file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
+  image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>',
+  check: '<polyline points="20 6 9 17 4 12"/>',
+  checkCircle: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+  package: '<path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+  pill: '<path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/>',
+  chevDown: '<polyline points="6 9 12 15 18 9"/>',
+  chevLeft: '<polyline points="15 18 9 12 15 6"/>',
+  chevRight: '<polyline points="9 18 15 12 9 6"/>',
+  arrowRight: '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>',
+  repeat: '<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
+  percent: '<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+  sigma: '<path d="M18 7V4H6l6 8-6 8h12v-3"/>',
+};
+const ic = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ''}</svg>`;
+function hydrate(root = document) {
+  root.querySelectorAll('i[data-ic]').forEach(el => { const t = document.createElement('span'); t.innerHTML = ic(el.dataset.ic, el.className); el.replaceWith(t.firstChild); });
+}
+
+// ═════════ HELPERS ═════════
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+const fmtN = (v, dp = 0) => num(v).toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp });
+const sar = (v, dp = 0) => 'SAR ' + fmtN(v, dp);
+const sarH = (v, dp = 0) => `<small>SAR</small>${fmtN(v, dp)}`;
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+const tel = p => esc(String(p || '').replace(/[^\d+]/g, ''));
+const pad = n => String(n).padStart(2, '0');
+const toISO = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+function parseISO(s) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ''); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; }
+const todayISO = () => toISO(new Date());
+function addDays(iso, n) { const d = parseISO(iso); d.setDate(d.getDate() + n); return toISO(d); }
+function diffDays(a, b) { const x = parseISO(a), y = parseISO(b); return Math.round((Date.UTC(y.getFullYear(), y.getMonth(), y.getDate()) - Date.UTC(x.getFullYear(), x.getMonth(), x.getDate())) / 864e5); }
+const fmtDate = (iso, o = { day: 'numeric', month: 'short', year: 'numeric' }) => { const d = parseISO(iso); return d ? d.toLocaleDateString('en-GB', o) : '—'; };
+const fmtShort = iso => fmtDate(iso, { day: 'numeric', month: 'short' });
+function relDays(n) {
+  if (n === 0) return 'Due today';
+  if (n === 1) return 'Due tomorrow';
+  return n < 0 ? `${-n} day${n === -1 ? '' : 's'} overdue` : `Due in ${n} days`;
+}
+const AV = [['#E8EDFF', '#2B47B8'], ['#E6F6F1', '#0F7A5C'], ['#FEF1E1', '#9A5A00'], ['#F1EBFF', '#6941C6'], ['#FDEBEC', '#B42318'], ['#E3F4F8', '#0E7490']];
+function avatar(p) {
+  let h = 0; for (const c of p.name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const [bg, fg] = AV[h % AV.length];
+  const ini = p.name.trim().split(/\s+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+  return `<span class="av" style="background:${bg};color:${fg}">${esc(ini)}</span>`;
+}
+
+// ═════════ STORAGE (same keys as earlier versions — existing data is kept) ═════════
+const KEY = 'chronicrx_patients', FKEY = 'chronicrx_files';
+function load(k, fb) { try { const v = JSON.parse(localStorage.getItem(k)); return v ?? fb; } catch { return fb; } }
+function neverSaved() { try { return localStorage.getItem(KEY) === null; } catch { return true; } }
+let patients = load(KEY, []); if (!Array.isArray(patients)) patients = [];
+let files = load(FKEY, {}); if (!files || typeof files !== 'object' || Array.isArray(files)) files = {};
+function persist() { try { localStorage.setItem(KEY, JSON.stringify(patients)); } catch { toast('Could not save — browser storage unavailable', 'warn'); } }
+function persistFiles() { try { localStorage.setItem(FKEY, JSON.stringify(files)); } catch { toast('Documents too large for browser storage — kept for this session only', 'warn'); } }
+
+// ═════════ CORE CALCULATIONS ═════════
+function revenue(p) {
+  const last = num(p.lastRev), full = num(p.fullRev);
+  const upsell = (p.rxtype !== 'full' && full > last) ? full - last : 0;
+  const base = (p.rxtype === 'full' && last === 0) ? full : last;
+  return { last, full, base, upsell, est: base + upsell };
+}
+function normalise(p) {
+  p.id = String(p.id); p.name = String(p.name || ''); p.phone = String(p.phone || '');
+  p.cycle = parseInt(p.cycle) > 0 ? parseInt(p.cycle) : 90;
+  p.lastRev = num(p.lastRev); p.fullRev = num(p.fullRev);
+  p.rxtype = ['full', 'partial', 'none'].includes(p.rxtype) ? p.rxtype : 'full';
+  p.lastDate = parseISO(p.lastDate) ? String(p.lastDate).slice(0, 10) : todayISO();
+  p.meds = Array.isArray(p.meds) ? p.meds : [];
+  p.logs = Array.isArray(p.logs) ? p.logs : [];
+  p.refills = Array.isArray(p.refills) ? p.refills : [];
+  const r = revenue(p); p.estRev = r.est; p.upsell = r.upsell;
+  return p;
+}
+const dueDate = p => addDays(p.lastDate, p.cycle);
+const daysToDue = p => diffDays(todayISO(), dueDate(p));
+function status(p) {
+  const d = daysToDue(p);
+  if (d < 0) return { key: 'overdue', b: 'b-overdue', t: 't-red', col: 'var(--red)', ring: '#F07B63' };
+  if (d === 0) return { key: 'today', b: 'b-today', t: 't-orange', col: 'var(--orange)', ring: '#F5A55B' };
+  if (d <= 7) return { key: 'soon', b: 'b-soon', t: 't-violet', col: 'var(--violet)', ring: '#A48AFB' };
+  return { key: 'ok', b: 'b-ok', t: 't-green', col: 'var(--green)', ring: '#34D399' };
+}
+function cycleProgress(p) { const el = Math.max(0, diffDays(p.lastDate, todayISO())); return { elapsed: el, pct: Math.min(1, el / p.cycle) }; }
+const lastLog = p => p.logs[0] || null;
+const callbackDue = (p, on = todayISO()) => { const l = lastLog(p); return !!(l && l.next && l.next <= on); };
+const isUpsell = p => revenue(p).upsell > 0;
+const FILTERS = {
+  all:      { title: 'All patients',            test: () => true },
+  overdue:  { title: 'Overdue refills',         test: p => status(p).key === 'overdue' },
+  today:    { title: 'Due today',               test: p => status(p).key === 'today' },
+  soon:     { title: 'Due in the next 7 days',  test: p => status(p).key === 'soon' },
+  partial:  { title: 'Upsell opportunities',    test: isUpsell },
+  callback: { title: 'Call-backs due',          test: p => callbackDue(p) },
+};
+
+// ═════════ SEED (first run only) ═════════
+if (!patients.length && neverSaved()) {
+  const d = n => addDays(todayISO(), n);
+  patients = [
+    { id:'P001', name:'Ahmed Al-Rashid', phone:'055 010 1101', insurance:'Bupa Arabia', condition:'Diabetes T2, Hypertension', hospital:'King Fahad Medical City', lastDate:d(-92), cycle:90, rxtype:'partial', lastRev:68, fullRev:145, meds:[{name:'Metformin 1000mg',qty:'90 tabs',src:'us'},{name:'Amlodipine 10mg',qty:'90 tabs',src:'hospital'},{name:'Atorvastatin 40mg',qty:'90 tabs',src:'hospital'}], notes:'Very cooperative. Asks for all items when called.', logs:[{date:d(-10),outcome:'won',note:'Confirmed coming next week. Requesting full Rx.',next:d(-3)}] },
+    { id:'P002', name:'Fatima Khalil', phone:'055 020 2202', insurance:'Tawuniya', condition:'Asthma, GERD', hospital:'Dr. Sulaiman Al Habib', lastDate:d(-88), cycle:90, rxtype:'full', lastRev:112, fullRev:112, meds:[{name:'Seretide 250 inhaler',qty:'2 units',src:'us'},{name:'Omeprazole 20mg',qty:'90 caps',src:'us'}], notes:'Reliable refiller.', logs:[] },
+    { id:'P003', name:'Mohamed Saeed', phone:'055 030 3303', insurance:'MedGulf', condition:'Hypertension, CKD', hospital:'King Faisal Specialist Hospital', lastDate:d(-30), cycle:90, rxtype:'partial', lastRev:45, fullRev:180, meds:[{name:'Losartan 100mg',qty:'90 tabs',src:'us'},{name:'Furosemide 40mg',qty:'90 tabs',src:'hospital'},{name:'Allopurinol 300mg',qty:'90 tabs',src:'hospital'},{name:'Calcium + Vit D',qty:'90 tabs',src:'hospital'}], notes:'Hospital dispenses diuretics. We can request them all.', logs:[] },
+    { id:'P004', name:'Sarah Johnson', phone:'055 040 4404', insurance:'AXA Cooperative', condition:'Hypothyroidism', hospital:'Dallah Hospital', lastDate:d(-60), cycle:60, rxtype:'full', lastRev:28, fullRev:28, meds:[{name:'Levothyroxine 100mcg',qty:'60 tabs',src:'us'}], notes:'', logs:[] },
+    { id:'P005', name:'Omar Farouq', phone:'055 050 5505', insurance:'Cigna', condition:'Diabetes T1, Neuropathy', hospital:'King Khalid University Hospital', lastDate:d(-5), cycle:90, rxtype:'none', lastRev:0, fullRev:220, meds:[{name:'Insulin Lantus',qty:'5 pens',src:'hospital'},{name:'Insulin NovoRapid',qty:'5 pens',src:'hospital'},{name:'Pregabalin 150mg',qty:'90 caps',src:'hospital'}], notes:'Hospital dispenses everything. Has a copy. Worth calling when due.', logs:[] },
+    { id:'P006', name:'Layla Hamdan', phone:'055 060 6606', insurance:'Bupa Arabia', condition:'Hyperlipidaemia', hospital:'Riyadh Care Hospital', lastDate:d(-26), cycle:30, rxtype:'partial', lastRev:55, fullRev:90, meds:[{name:'Rosuvastatin 20mg',qty:'30 tabs',src:'us'},{name:'Ezetimibe 10mg',qty:'30 tabs',src:'hospital'}], notes:'', logs:[{date:d(0),outcome:'miss',note:'Busy, asked to call back in two days.',next:d(2)}] },
+  ];
+  persist();
+}
+patients.forEach(normalise);
+
+// ═════════ STATE & ROUTING ═════════
+const state = { view: 'overview', filter: 'all', search: '', type: '', sort: 'urgency', horizon: 30, callDate: todayISO(), editId: null, detailId: null, callId: null, refillId: null, outcome: null, tempFiles: [] };
+const getP = id => patients.find(p => p.id === id);
+const VIEWS = ['overview', 'patients', 'forecast', 'calls'];
+
+function navigate(target, scroll = true) {
+  let [view, filter] = String(target).split(':');
+  if (!VIEWS.includes(view)) view = 'overview';
+  state.view = view;
+  if (view === 'patients') state.filter = FILTERS[filter] ? filter : 'all';
+  VIEWS.forEach(v => $('v-' + v).hidden = v !== view);
+  document.querySelectorAll('.tabs [data-nav], .bottom-nav [data-nav]').forEach(el => el.classList.toggle('active', el.dataset.nav.split(':')[0] === view));
+  document.querySelectorAll('.ptab').forEach(el => el.classList.toggle('active', el.dataset.nav === 'patients:' + state.filter));
+  const hash = '#' + (view === 'patients' ? 'patients/' + state.filter : view);
+  if (location.hash !== hash) history.replaceState(null, '', hash);
+  if (scroll) window.scrollTo({ top: 0 });
+  render();
+}
+function render() {
+  renderCounts();
+  ({ overview: renderOverview, patients: renderPatients, forecast: renderForecast, calls: renderCalls })[state.view]();
+}
+function counts() {
+  const c = { all: patients.length };
+  for (const k in FILTERS) if (k !== 'all') c[k] = patients.filter(FILTERS[k].test).length;
+  return c;
+}
+function renderCounts() {
+  const c = counts();
+  document.querySelectorAll('[data-count]').forEach(el => el.textContent = c[el.dataset.count] ?? 0);
+  const urgent = c.overdue + c.today;
+  document.querySelectorAll('[data-pip="urgent"]').forEach(el => { el.hidden = !urgent; el.textContent = urgent; });
+}
+function setHero(eyebrow, title, sub, right = '') {
+  $('heroEyebrow').textContent = eyebrow; $('heroTitle').textContent = title; $('heroSub').innerHTML = sub; $('heroRight').innerHTML = right;
+}
+const longDate = () => fmtDate(todayISO(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+// ═════════ SHARED FRAGMENTS ═════════
+const rxName = t => t === 'full' ? 'Full Rx' : t === 'partial' ? 'Partial Rx' : 'Hospital Rx copy';
+const rxTag = t => `<span class="tag rx-${t}">${rxName(t)}</span>`;
+function outcomeMeta(o) {
+  return o === 'won' ? { label: 'Patient coming', short: 'Coming', icon: 'checkCircle', t: 't-green', x: 'x-green' }
+    : o === 'miss' ? { label: 'Rescheduled', short: 'Rescheduled', icon: 'calendar', t: 't-violet', x: 'x-violet' }
+    : { label: 'No answer', short: 'No answer', icon: 'phoneOff', t: 't-red', x: 'x-red' };
+}
+function contactHTML(p) {
+  const l = lastLog(p);
+  if (!l) return '<span class="muted sm">Not contacted</span>';
+  const m = outcomeMeta(l.outcome);
+  return `<span class="contact"><span class="${m.t}">${ic(m.icon)}</span>${m.short}</span><div class="who-m">${fmtShort(l.date)}${l.next ? ' · next ' + fmtShort(l.next) : ''}</div>`;
+}
+function valueHTML(p) {
+  const r = revenue(p);
+  return `<div class="val">${sar(r.base)}</div>${r.upsell > 0 ? `<div class="val-u">+${sar(r.upsell)} upsell</div>` : '<div class="who-m">No upsell</div>'}`;
+}
+const whoHTML = (p, meta) => `<div class="who">${avatar(p)}<div style="min-width:0"><div class="who-n">${esc(p.name)}</div><div class="who-m">${meta}</div></div></div>`;
+const phoneLink = p => `<a href="tel:${tel(p.phone)}" data-stop>${esc(p.phone)}</a>`;
+function kpiCard({ nav, icon, x, label, value, foot, tone = '' }) {
+  const tag = nav ? 'button' : 'div';
+  const active = nav && state.view === 'patients' && nav === 'patients:' + state.filter ? ' active' : '';
+  return `<${tag} class="kpi${active}"${nav ? ` data-nav="${nav}"` : ''}>
+    <div class="kpi-row"><div class="kpi-l">${label}</div><span class="chip-ic ${x}">${ic(icon)}</span></div>
+    <div class="kpi-v ${tone}">${value}</div><div class="kpi-f">${foot}</div></${tag}>`;
+}
+const emptyHTML = (icon, t, s) => `<div class="empty"><span class="chip-ic x-brand">${ic(icon)}</span><div class="empty-t">${t}</div><div class="empty-s">${s}</div></div>`;
+function statusSummary() {
+  const s = { overdue: [0, 0], today: [0, 0], soon: [0, 0], ok: [0, 0] };
+  patients.forEach(p => { const k = status(p).key; s[k][0]++; s[k][1] += revenue(p).base; });
+  return s;
+}
+function conversion(days) {
+  const since = addDays(todayISO(), -(days - 1)), to = todayISO(), r = { calls: 0, won: 0, miss: 0, no: 0 };
+  patients.forEach(p => p.logs.forEach(l => { if (l.date >= since && l.date <= to) { r.calls++; r[l.outcome === 'won' ? 'won' : l.outcome === 'miss' ? 'miss' : 'no']++; } }));
+  r.rate = r.calls ? Math.round(r.won / r.calls * 100) : 0;
+  return r;
+}
+function ringSVG(frac, color, r, w, track = 'var(--line-2)') {
+  const C = 2 * Math.PI * r, s = r + w / 2 + 1, f = Math.max(0, Math.min(1, frac));
+  return `<svg viewBox="0 0 ${s * 2} ${s * 2}"><circle cx="${s}" cy="${s}" r="${r}" fill="none" stroke="${track}" stroke-width="${w}"/>${f > 0 ? `<circle cx="${s}" cy="${s}" r="${r}" fill="none" stroke="${color}" stroke-width="${w}" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - f)}"/>` : ''}</svg>`;
+}
+function oppRow(p, mx) {
+  const r = revenue(p), st = status(p);
+  return `<div class="opp">
+    <div class="opp-m" data-open="${esc(p.id)}">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline"><span class="who-n">${esc(p.name)}</span><span class="val t-amber">+${sar(r.upsell)}</span></div>
+      <div class="who-m">${sar(r.last)} of ${sar(r.full)} · <span class="${st.t}">${relDays(daysToDue(p))}</span></div>
+      <div class="opp-bar"><span style="width:${Math.max(4, r.upsell / mx * 100)}%"></span></div>
+    </div>
+    <button class="ib call" data-call="${esc(p.id)}" title="Log call" aria-label="Log call to ${esc(p.name)}">${ic('phone')}</button>
+  </div>`;
+}
+function topOpps(n) { return patients.filter(isUpsell).sort((a, b) => revenue(b).upsell - revenue(a).upsell).slice(0, n); }
+
+// ═════════ OVERVIEW ═════════
+function priorityQueue() {
+  const out = [];
+  patients.forEach(p => {
+    const k = status(p).key;
+    const rank = k === 'overdue' ? 0 : k === 'today' ? 1 : callbackDue(p) ? 2 : k === 'soon' ? 3 : -1;
+    if (rank >= 0) out.push({ p, rank });
+  });
+  return out.sort((a, b) => a.rank - b.rank || daysToDue(a.p) - daysToDue(b.p) || revenue(b.p).est - revenue(a.p).est);
+}
+function renderOverview() {
+  const h = new Date().getHours(), greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  const s = statusSummary(), c = counts(), queue = priorityQueue();
+  const now = queue.filter(q => q.rank < 3), nowVal = now.reduce((a, q) => a + revenue(q.p).est, 0);
+  const up = patients.reduce((a, p) => a + revenue(p).upsell, 0);
+  const run = patients.reduce((a, p) => a + revenue(p).base * 30 / p.cycle, 0);
+  const conv = conversion(30);
+
+  setHero(longDate(), greet,
+    now.length ? `<strong>${plural(now.length, 'patient')}</strong> need${now.length === 1 ? 's' : ''} a call today, worth up to <strong>${sar(nowVal)}</strong> in refills.`
+               : 'Your call queue is clear for today. Upcoming refills are listed below.',
+    `<div class="hero-stats">
+      <div class="hero-stat"><div class="l">In today's queue</div><div class="v">${sarH(nowVal)}</div><div class="d">${plural(now.length, 'call')} to make</div></div>
+      <div class="hero-stat"><div class="l">Upsell pipeline</div><div class="v">${sarH(up)}</div><div class="d">${plural(c.partial, 'patient')}</div></div>
+      <div class="hero-stat"><div class="l">Monthly run-rate</div><div class="v">${sarH(run)}</div><div class="d mint">${conv.calls ? conv.rate + '% call conversion' : plural(patients.length, 'patient') + ' on file'}</div></div>
+    </div>`);
+
+  $('ovKpis').innerHTML = [
+    kpiCard({ nav: 'patients:overdue', icon: 'alert', x: 'x-red', label: 'Overdue refills', value: s.overdue[0], tone: s.overdue[0] ? 't-red' : '', foot: s.overdue[0] ? `${sar(s.overdue[1])} baseline at risk` : 'Nothing overdue' }),
+    kpiCard({ nav: 'patients:today', icon: 'clock', x: 'x-orange', label: 'Due today', value: s.today[0], foot: s.today[0] ? `${sar(s.today[1])} expected` : 'Nothing due today' }),
+    kpiCard({ nav: 'patients:soon', icon: 'calendar', x: 'x-violet', label: 'Due in next 7 days', value: s.soon[0], foot: s.soon[0] ? `${sar(s.soon[1])} expected` : 'Nothing this week' }),
+    kpiCard({ nav: 'patients:callback', icon: 'phoneIn', x: 'x-brand', label: 'Call-backs due', value: c.callback, foot: c.callback ? 'Promised follow-ups' : 'No call-backs pending' }),
+  ].join('');
+
+  $('ovQueue').innerHTML = queue.length ? queue.slice(0, 7).map(({ p, rank }) => {
+    const d = daysToDue(p), r = revenue(p);
+    const reason = rank === 0 ? `<span class="badge b-overdue">${relDays(d)}</span>`
+      : rank === 1 ? '<span class="badge b-today">Due today</span>'
+      : rank === 2 ? `<span class="badge b-cb">Call-back · ${fmtShort(lastLog(p).next)}</span>`
+      : `<span class="badge b-soon">${relDays(d)}</span>`;
+    return `<div class="q-item" data-open="${esc(p.id)}">
+      ${whoHTML(p, `${phoneLink(p)} · ${rxName(p.rxtype)}`)}
+      <div class="q-reason">${reason}</div>
+      <div class="q-val"><div class="v">${sar(r.est)}</div>${r.upsell ? `<div class="u">incl. +${sar(r.upsell)}</div>` : ''}</div>
+      <button class="ib call" data-call="${esc(p.id)}" title="Log call" aria-label="Log call to ${esc(p.name)}">${ic('phone')}</button>
+    </div>`;
+  }).join('') + (queue.length > 7 ? `<div class="q-item q-more" data-nav="patients:all">View ${queue.length - 7} more in Patients</div>` : '')
+    : emptyHTML('checkCircle', 'Queue is clear', 'No overdue, due or call-back patients right now.');
+
+  drawDueChart();
+
+  const opps = topOpps(4), mx = opps.length ? revenue(opps[0]).upsell : 1;
+  $('ovOpps').innerHTML = opps.length ? opps.map(p => oppRow(p, mx)).join('') : emptyHTML('banknote', 'No upsell gaps', 'Every patient gets a full Rx from you.');
+
+  $('ovPerf').innerHTML = `<div class="perf">
+    <div class="ring">${ringSVG(conv.calls ? conv.won / conv.calls : 0, 'var(--brand)', 54, 10)}<div class="c"><div><b>${conv.calls ? conv.rate + '%' : '—'}</b><span>conversion</span></div></div></div>
+    <div class="perf-list">
+      <div><span class="chip-ic x-green">${ic('checkCircle')}</span>Patient coming<b>${conv.won}</b></div>
+      <div><span class="chip-ic x-violet">${ic('calendar')}</span>Rescheduled<b>${conv.miss}</b></div>
+      <div><span class="chip-ic x-red">${ic('phoneOff')}</span>No answer<b>${conv.no}</b></div>
+    </div></div>`;
+
+  const n = patients.length || 1;
+  const byT = ['full', 'partial', 'none'].map(t => [rxName(t), patients.filter(p => p.rxtype === t).length]);
+  const byC = [30, 60, 90, 180].map(cy => [`${cy}-day cycle`, patients.filter(p => p.cycle === cy).length]).filter(x => x[1]);
+  const other = patients.filter(p => ![30, 60, 90, 180].includes(p.cycle)).length;
+  if (other) byC.push(['Other cycles', other]);
+  const row = ([l, v]) => `<div class="mix-row"><span>${l}</span><div class="track"><span style="width:${v / n * 100}%"></span></div><div class="n">${v}<span>${Math.round(v / n * 100)}%</span></div></div>`;
+  $('ovMix').innerHTML = patients.length ? `<div class="lbl-sm">Dispense type</div>${byT.map(row).join('')}<div class="lbl-sm" style="margin-top:14px">Refill cycle</div>${byC.map(row).join('')}` : '<div class="muted sm">No patients yet</div>';
+}
+
+// ═════════ CHARTS ═════════
+function niceMax(v) {
+  if (v <= 0) return 1;
+  const p = Math.pow(10, Math.floor(Math.log10(v))), n = v / p;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p;
+}
+function barPath(x, y, w, h, r, fill) {
+  if (h <= 0) return '';
+  r = Math.min(r, h, w / 2);
+  if (!r) return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}"/>`;
+  return `<path d="M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z" fill="${fill}"/>`;
+}
+function barChart(svg, tipEl, wrap, buckets, { height, fmtY, integer }) {
+  const W = svg.clientWidth || 600, H = height, m = { t: 10, r: 4, b: 28, l: integer ? 30 : 52 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const total = b => b.parts.reduce((a, p) => a + p.v, 0);
+  const peak = Math.max(0, ...buckets.map(total));
+  const max = integer ? Math.max(4, Math.ceil(peak / 4) * 4) : niceMax(peak) || 100;
+  const y = v => m.t + ih - v / max * ih;
+  const n = buckets.length, slot = iw / n, bw = Math.max(6, Math.min(40, slot * .62));
+  let g = '';
+  for (let i = 0; i <= 4; i++) {
+    const v = max / 4 * i, yy = y(v);
+    g += `<line x1="${m.l}" x2="${W - m.r}" y1="${yy}" y2="${yy}" stroke="${i ? '#EFF1F5' : '#D9DDE5'}"/>`;
+    g += `<text x="${m.l - 10}" y="${yy + 4}" text-anchor="end" font-size="12" fill="#8A94A6">${fmtY(v)}</text>`;
+  }
+  const every = Math.ceil(n / Math.max(1, Math.floor(iw / 56)));
+  buckets.forEach((b, i) => {
+    const cx = m.l + slot * i + slot / 2, x = cx - bw / 2;
+    let yb = m.t + ih;
+    const segs = b.parts.filter(p => p.v > 0);
+    segs.forEach((p, j) => {
+      const gap = j > 0 ? 2 : 0, hh = Math.max(0, p.v / max * ih - gap);
+      g += barPath(x, yb - gap - hh, bw, hh, j === segs.length - 1 ? 4 : 0, p.color);
+      yb -= hh + gap;
+    });
+    if (b.forceLabel || (!b.skipLabel && (i - (buckets[0].forceLabel ? 1 : 0)) % every === 0)) g += `<text x="${cx}" y="${H - 8}" text-anchor="middle" font-size="12" fill="${b.labelColor || '#8A94A6'}"${b.labelColor ? ' font-weight="600"' : ''}>${b.label}</text>`;
+    g += `<rect x="${m.l + slot * i}" y="${m.t}" width="${slot}" height="${ih}" fill="transparent" data-b="${i}"/>`;
+  });
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.innerHTML = g;
+  const show = (i, cx, cy) => {
+    tipEl.innerHTML = buckets[i].tip;
+    const r = wrap.getBoundingClientRect(), tw = tipEl.offsetWidth || 180;
+    let left = cx - r.left + 14; if (left + tw > r.width) left = cx - r.left - tw - 14;
+    tipEl.style.left = Math.max(0, left) + 'px'; tipEl.style.top = Math.max(0, cy - r.top - 30) + 'px';
+    tipEl.classList.add('show');
+  };
+  svg.onpointermove = e => { const i = e.target.dataset && e.target.dataset.b; if (i === undefined) return tipEl.classList.remove('show'); show(+i, e.clientX, e.clientY); };
+  svg.onpointerleave = () => tipEl.classList.remove('show');
+}
+const names3 = ps => ps.length ? '<br><span class="mut">' + ps.slice(0, 3).map(p => esc(p.name)).join(', ') + (ps.length > 3 ? ` +${ps.length - 3}` : '') + '</span>' : '';
+function drawDueChart() {
+  const t = todayISO(), over = patients.filter(p => status(p).key === 'overdue');
+  const buckets = [{ label: 'Late', labelColor: 'var(--red)', forceLabel: true, parts: [{ v: over.length, color: '#D9573A' }],
+    tip: `<b>Overdue</b><br>${plural(over.length, 'patient')} · ${sar(over.reduce((a, p) => a + revenue(p).est, 0))}${names3(over)}` }];
+  for (let i = 0; i < 14; i++) {
+    const day = addDays(t, i), ps = patients.filter(p => dueDate(p) === day);
+    buckets.push({ label: fmtDate(day, { day: 'numeric' }), labelColor: i === 0 ? 'var(--brand)' : '', parts: [{ v: ps.length, color: 'var(--c-base)' }],
+      tip: `<b>${fmtDate(day, { weekday: 'short', day: 'numeric', month: 'short' })}</b><br>${plural(ps.length, 'refill')} · ${sar(ps.reduce((a, p) => a + revenue(p).est, 0))}${names3(ps)}` });
+  }
+  barChart($('dueChart'), $('dueTip'), $('dueWrap'), buckets, { height: 210, integer: true, fmtY: v => Math.round(v) });
+}
+
+// ═════════ PATIENTS ═════════
+function renderPatients() {
+  const f = FILTERS[state.filter], s = statusSummary(), c = counts();
+  const up = patients.reduce((a, p) => a + revenue(p).upsell, 0);
+  setHero('Patients', f.title, `${plural(patients.length, 'patient')} on chronic refill follow-up · ${longDate()}`);
+  $('ptKpis').innerHTML = [
+    kpiCard({ nav: 'patients:overdue', icon: 'alert', x: 'x-red', label: 'Overdue', value: s.overdue[0], tone: s.overdue[0] ? 't-red' : '', foot: s.overdue[0] ? `${sar(s.overdue[1])} at risk` : 'Nothing overdue' }),
+    kpiCard({ nav: 'patients:today', icon: 'clock', x: 'x-orange', label: 'Due today', value: s.today[0], foot: s.today[0] ? `${sar(s.today[1])} expected` : 'Nothing due today' }),
+    kpiCard({ nav: 'patients:soon', icon: 'calendar', x: 'x-violet', label: 'Next 7 days', value: s.soon[0], foot: s.soon[0] ? `${sar(s.soon[1])} expected` : 'Nothing this week' }),
+    kpiCard({ nav: 'patients:partial', icon: 'banknote', x: 'x-amber', label: 'Upsell pipeline', value: sarH(up), foot: `${plural(c.partial, 'patient')} with partial or hospital Rx` }),
+  ].join('');
+
+  const q = state.search.trim().toLowerCase();
+  const sorters = {
+    urgency: (a, b) => daysToDue(a) - daysToDue(b) || a.name.localeCompare(b.name),
+    upsell: (a, b) => revenue(b).upsell - revenue(a).upsell || daysToDue(a) - daysToDue(b),
+    value: (a, b) => revenue(b).est - revenue(a).est || daysToDue(a) - daysToDue(b),
+    name: (a, b) => a.name.localeCompare(b.name),
+  };
+  const rows = patients.filter(f.test).filter(p => !state.type || p.rxtype === state.type)
+    .filter(p => !q || [p.name, p.id, p.phone, p.phone.replace(/\s/g, ''), p.condition, p.insurance, p.hospital].join(' ').toLowerCase().includes(q))
+    .sort(sorters[state.sort]);
+  $('ptCount').textContent = `Showing ${rows.length} of ${patients.length}`;
+
+  if (!rows.length) {
+    const e = q || state.type ? emptyHTML('search', 'No matching patients', 'Try another name, ID or phone, or clear the filters.')
+      : patients.length ? emptyHTML('checkCircle', 'Nothing in this list', 'Every patient here is up to date.')
+      : emptyHTML('userPlus', 'No patients yet', 'Add your first patient to start tracking refills.');
+    $('ptBody').innerHTML = `<tr><td colspan="7">${e}</td></tr>`; $('ptCards').innerHTML = e; return;
+  }
+  $('ptBody').innerHTML = rows.map(p => {
+    const st = status(p), cp = cycleProgress(p), id = esc(p.id);
+    return `<tr class="row" data-open="${id}">
+      <td>${whoHTML(p, `${id} · ${phoneLink(p)}`)}</td>
+      <td>${rxTag(p.rxtype)}<div class="who-m" style="margin-top:4px;max-width:190px">${esc(p.condition) || plural(p.meds.length, 'medicine')}</div></td>
+      <td class="cyc"><div class="cyc-bar"><span style="width:${cp.pct * 100}%;background:${st.col}"></span></div><div class="cyc-t"><span>Day ${cp.elapsed} of ${p.cycle}</span><span>${Math.round(cp.pct * 100)}%</span></div></td>
+      <td><div class="nw" style="font-weight:500">${fmtDate(dueDate(p))}</div><div style="margin-top:4px"><span class="badge ${st.b}">${relDays(daysToDue(p))}</span></div></td>
+      <td>${contactHTML(p)}</td>
+      <td class="r">${valueHTML(p)}</td>
+      <td class="r"><div class="acts" data-stop>
+        <button class="ib call" data-call="${id}" title="Log call" aria-label="Log call">${ic('phone')}</button>
+        <button class="ib" data-refill="${id}" title="Record refill" aria-label="Record refill">${ic('package')}</button>
+        <button class="ib" data-edit="${id}" title="Edit" aria-label="Edit">${ic('edit')}</button>
+      </div></td></tr>`;
+  }).join('');
+  $('ptCards').innerHTML = rows.map(p => {
+    const st = status(p), cp = cycleProgress(p), id = esc(p.id);
+    return `<div class="pc" data-open="${id}">
+      <div class="pc-top">${whoHTML(p, `${rxName(p.rxtype)} · ${phoneLink(p)}`)}<span class="badge ${st.b}">${relDays(daysToDue(p))}</span></div>
+      <div class="pc-mid"><div class="cyc-bar"><span style="width:${cp.pct * 100}%;background:${st.col}"></span></div><div class="cyc-t"><span>Day ${cp.elapsed} of ${p.cycle} · due ${fmtShort(dueDate(p))}</span><span>${Math.round(cp.pct * 100)}%</span></div></div>
+      <div class="pc-bot"><div>${valueHTML(p)}</div><div class="acts" data-stop>
+        <button class="btn btn-sm btn-brand" data-call="${id}">${ic('phone')}Call</button>
+        <button class="ib" data-refill="${id}" aria-label="Record refill">${ic('package')}</button>
+        <button class="ib" data-edit="${id}" aria-label="Edit">${ic('edit')}</button>
+      </div></div></div>`;
+  }).join('');
+}
+
+// ═════════ FORECAST ═════════
+function forecast(H) {
+  const start = todayISO(), end = addDays(start, H), daily = H <= 14, nB = daily ? H : Math.ceil(H / 7);
+  const buckets = Array.from({ length: nB }, (_, i) => {
+    const from = addDays(start, daily ? i : i * 7);
+    return { from, to: daily ? from : (i === nB - 1 ? addDays(end, -1) : addDays(from, 6)), base: 0, up: 0, n: 0 };
+  });
+  const byType = {}; ['full', 'partial', 'none'].forEach(t => byType[t] = { pts: 0, n: 0, base: 0, up: 0 });
+  const tot = { n: 0, base: 0, up: 0, runBase: 0, runPot: 0, risk: 0, riskN: 0 };
+  patients.forEach(p => {
+    const r = revenue(p);
+    tot.runBase += r.base * 30 / p.cycle; tot.runPot += r.est * 30 / p.cycle;
+    if (status(p).key === 'overdue') { tot.risk += r.base; tot.riskN++; }
+    let dt = dueDate(p) < start ? start : dueDate(p), first = true;
+    while (dt < end) {
+      const off = diffDays(start, dt), b = buckets[Math.min(daily ? off : Math.floor(off / 7), nB - 1)];
+      b.base += r.base; b.up += r.upsell; b.n++;
+      tot.n++; tot.base += r.base; tot.up += r.upsell;
+      const t = byType[p.rxtype]; t.n++; t.base += r.base; t.up += r.upsell; if (first) { t.pts++; first = false; }
+      dt = addDays(dt, p.cycle);
+    }
+  });
+  return { start, end: addDays(end, -1), daily, buckets, byType, ...tot };
+}
+function renderForecast() {
+  const H = state.horizon, f = forecast(H), conv = conversion(30);
+  setHero('Revenue forecast', `${sar(f.base + f.up)} potential`,
+    `Expected refill revenue from <strong>${fmtDate(f.start)}</strong> to <strong>${fmtDate(f.end)}</strong>: ${sar(f.base)} baseline, plus ${sar(f.up)} if every partial prescription converts to full.`,
+    `<div class="seg-dark" role="group" aria-label="Forecast window">${[7, 30, 90].map(h => `<button data-h="${h}" class="${h === H ? 'active' : ''}">${h} days</button>`).join('')}</div>`);
+  $('fcKpis').innerHTML = [
+    kpiCard({ icon: 'repeat', x: 'x-brand', label: 'Expected refills', value: f.n, foot: `From ${plural(patients.length, 'patient')} on file` }),
+    kpiCard({ icon: 'trend', x: 'x-brand', label: 'Baseline revenue', value: sarH(f.base), foot: 'At last dispensed values' }),
+    kpiCard({ icon: 'banknote', x: 'x-amber', label: 'Upsell potential', value: sarH(f.up), tone: f.up ? 't-amber' : '', foot: f.base ? `+${Math.round(f.up / f.base * 100)}% on top of baseline` : 'No baseline in window' }),
+    kpiCard({ icon: 'grid', x: 'x-green', label: 'Monthly run-rate', value: sarH(f.runBase), foot: `Up to ${sar(f.runPot)} with full Rx` }),
+    kpiCard({ icon: 'alert', x: 'x-red', label: 'Revenue at risk', value: sarH(f.risk), tone: f.risk ? 't-red' : '', foot: plural(f.riskN, 'overdue patient') }),
+    kpiCard({ icon: 'percent', x: 'x-violet', label: 'Call conversion', value: conv.calls ? conv.rate + '%' : '—', foot: conv.calls ? `${conv.won} of ${plural(conv.calls, 'call')}, last 30 days` : 'No calls in last 30 days' }),
+  ].join('');
+  $('fcChartSub').textContent = f.daily ? 'Per day' : 'Per week, labelled by week start';
+  barChart($('fcChart'), $('fcTip'), $('fcWrap'), f.buckets.map(b => ({
+    label: fmtShort(b.from),
+    parts: [{ v: b.base, color: 'var(--c-base)' }, { v: b.up, color: 'var(--c-up)' }],
+    tip: `<b>${b.from === b.to ? fmtDate(b.from, { weekday: 'short', day: 'numeric', month: 'short' }) : fmtShort(b.from) + ' – ' + fmtShort(b.to)}</b><br><span class="mut">${plural(b.n, 'refill')}</span><br><span class="sw" style="background:var(--c-base)"></span>Baseline ${sar(b.base)}<br><span class="sw" style="background:var(--c-up)"></span>Upsell ${sar(b.up)}<br><b>Potential ${sar(b.base + b.up)}</b>`,
+  })), { height: 280, fmtY: v => v >= 1000 ? fmtN(v / 1000, v % 1000 ? 1 : 0) + 'k' : fmtN(v) });
+  const rows = ['full', 'partial', 'none'].map(k => { const t = f.byType[k];
+    return `<tr><td>${rxTag(k)}</td><td class="r">${t.pts}</td><td class="r">${t.n}</td><td class="r nw">${sar(t.base)}</td><td class="r nw t-amber">${t.up ? sar(t.up) : '—'}</td><td class="r nw"><b>${sar(t.base + t.up)}</b></td></tr>`; });
+  const tp = Object.values(f.byType).reduce((a, t) => a + t.pts, 0);
+  rows.push(`<tr style="background:var(--surface-2)"><td><b>Total</b></td><td class="r"><b>${tp}</b></td><td class="r"><b>${f.n}</b></td><td class="r nw"><b>${sar(f.base)}</b></td><td class="r nw t-amber"><b>${f.up ? sar(f.up) : '—'}</b></td><td class="r nw"><b>${sar(f.base + f.up)}</b></td></tr>`);
+  $('fcType').innerHTML = rows.join('');
+  const opps = topOpps(5), mx = opps.length ? revenue(opps[0]).upsell : 1;
+  $('fcOpps').innerHTML = opps.length ? opps.map(p => oppRow(p, mx)).join('') : emptyHTML('banknote', 'No upsell gaps', 'Every patient gets a full Rx from you.');
+}
+
+// ═════════ CALL CENTER ═════════
+function renderCalls() {
+  const day = state.callDate, isToday = day === todayISO();
+  const calls = []; patients.forEach(p => p.logs.forEach(l => { if (l.date === day) calls.push({ p, l }); }));
+  const by = o => calls.filter(c => c.l.outcome === o), won = by('won'), miss = by('miss'), no = calls.filter(c => c.l.outcome !== 'won' && c.l.outcome !== 'miss');
+  const wonRev = won.reduce((a, c) => a + revenue(c.p).est, 0);
+  const cbs = patients.filter(p => callbackDue(p, day)).sort((a, b) => lastLog(a).next.localeCompare(lastLog(b).next));
+  setHero('Call center', isToday ? "Today's calls" : fmtDate(day, { weekday: 'long', day: 'numeric', month: 'long' }),
+    `${plural(calls.length, 'call')} logged${won.length ? ` · <strong>${won.length} confirmed</strong>, worth ${sar(wonRev)}` : ''} · ${plural(cbs.length, 'call-back')} due`,
+    `<div class="date-dark">
+      <button class="sq" id="dPrev" aria-label="Previous day">${ic('chevLeft')}</button>
+      <input type="date" id="dPick" value="${day}" aria-label="Activity date">
+      <button class="sq" id="dNext" aria-label="Next day">${ic('chevRight')}</button>
+      <button class="txt" id="dToday">Today</button></div>`);
+  $('dPrev').onclick = () => { state.callDate = addDays(state.callDate, -1); renderCalls(); };
+  $('dNext').onclick = () => { state.callDate = addDays(state.callDate, 1); renderCalls(); };
+  $('dToday').onclick = () => { state.callDate = todayISO(); renderCalls(); };
+  $('dPick').onchange = e => { if (parseISO(e.target.value)) { state.callDate = e.target.value; renderCalls(); } };
+  $('clKpis').innerHTML = [
+    kpiCard({ icon: 'phone', x: 'x-brand', label: 'Calls made', value: calls.length, foot: calls.length ? `${Math.round(won.length / calls.length * 100)}% converted` : 'No calls logged' }),
+    kpiCard({ icon: 'checkCircle', x: 'x-green', label: 'Patients coming', value: won.length, tone: won.length ? 't-green' : '', foot: won.length ? `${sar(wonRev)} expected` : 'None confirmed' }),
+    kpiCard({ icon: 'calendar', x: 'x-violet', label: 'Rescheduled', value: miss.length, foot: 'Follow-up date set' }),
+    kpiCard({ icon: 'phoneOff', x: 'x-red', label: 'No answer', value: no.length, foot: 'Retry later' }),
+  ].join('');
+  $('clSub').textContent = `${plural(calls.length, 'call')} on ${fmtDate(day)}`;
+  $('clBody').innerHTML = calls.length ? calls.map(({ p, l }) => { const m = outcomeMeta(l.outcome);
+    return `<tr class="row" data-open="${esc(p.id)}">
+      <td>${whoHTML(p, `${esc(p.id)} · ${phoneLink(p)}`)}</td>
+      <td><span class="contact"><span class="${m.t}">${ic(m.icon)}</span>${m.label}</span></td>
+      <td class="sm" style="max-width:360px">${l.note ? esc(l.note) : '<span class="muted">No note</span>'}</td>
+      <td class="nw">${l.next ? fmtDate(l.next) : '<span class="muted">—</span>'}</td>
+      <td class="r">${valueHTML(p)}</td></tr>`; }).join('')
+    : `<tr><td colspan="5">${emptyHTML('headset', 'No calls on this day', 'Calls you log from the queue or patient list appear here.')}</td></tr>`;
+  $('cbBody').innerHTML = cbs.length ? cbs.map(p => { const l = lastLog(p), m = outcomeMeta(l.outcome), st = status(p), late = diffDays(l.next, day);
+    return `<tr class="row" data-open="${esc(p.id)}">
+      <td>${whoHTML(p, `${esc(p.id)} · ${phoneLink(p)}`)}</td>
+      <td class="nw"><div style="font-weight:500">${fmtDate(l.next)}</div>${late > 0 ? `<div class="who-m t-red">${plural(late, 'day')} late</div>` : '<div class="who-m">On time</div>'}</td>
+      <td><span class="contact"><span class="${m.t}">${ic(m.icon)}</span>${m.short}</span><div class="who-m">${fmtShort(l.date)}</div></td>
+      <td><span class="badge ${st.b}">${relDays(daysToDue(p))}</span></td>
+      <td class="r"><div class="acts" data-stop><button class="btn btn-sm btn-brand" data-call="${esc(p.id)}">${ic('phone')}Call</button></div></td></tr>`; }).join('')
+    : `<tr><td colspan="5">${emptyHTML('checkCircle', 'No call-backs due', 'Set a follow-up date when logging a call.')}</td></tr>`;
+}
+
+// ═════════ DRAWER ═════════
+function openDetail(id) {
+  const p = getP(id); if (!p) return;
+  state.detailId = id;
+  const st = status(p), r = revenue(p), cp = cycleProgress(p);
+  $('drHead').innerHTML = `
+    <div class="dr-top">
+      <div class="dr-id">${avatar(p)}<div style="min-width:0"><div class="dr-name">${esc(p.name)}</div><div class="dr-meta">${esc(p.id)} · <a href="tel:${tel(p.phone)}">${esc(p.phone)}</a></div></div></div>
+      <button class="dr-close" id="drClose" aria-label="Close">${ic('x')}</button>
+    </div>
+    <div class="dr-cycle">
+      <div class="ring">${ringSVG(cp.pct, st.ring, 34, 7, 'rgba(255,255,255,.1)')}<div class="c"><div><b>${Math.round(cp.pct * 100)}%</b><span>of cycle</span></div></div></div>
+      <div class="dr-ci">
+        <div><div class="l">Next refill</div><div class="v">${fmtDate(dueDate(p))}</div></div>
+        <div><div class="l">Status</div><div class="v">${relDays(daysToDue(p))}</div></div>
+        <div><div class="l">Last dispense</div><div class="v">${fmtDate(p.lastDate)}</div></div>
+        <div><div class="l">Cycle</div><div class="v">${p.cycle} days · ${rxName(p.rxtype)}</div></div>
+      </div>
+    </div>`;
+  $('drClose').onclick = closeDetail;
+  const src = { us: 'We dispense', hospital: 'Hospital', partial: 'Split' };
+  const meds = p.meds.length ? p.meds.map(m => `<div class="med"><span class="chip-ic ${m.src === 'us' ? 'x-brand' : m.src === 'hospital' ? 'x-green' : 'x-amber'}">${ic('pill')}</span><div style="min-width:0"><div class="med-n">${esc(m.name)}</div><div class="med-q">${esc(m.qty) || '—'}</div></div><span class="med-s src-${esc(m.src)}">${src[m.src] || ''}</span></div>`).join('') : '<div class="muted sm">No medicines recorded</div>';
+  const docs = files[p.id] || [];
+  const docHTML = docs.length ? docs.map((f, i) => `<div class="file link" data-view="${i}">${ic(f.type && f.type.includes('pdf') ? 'file' : 'image')}<span class="file-n">${esc(f.name)}</span>${ic('arrowRight')}</div>`).join('') : '<div class="muted sm">No documents uploaded</div>';
+  const ev = [...p.logs.map(l => ({ date: l.date, l })), ...p.refills.map(f => ({ date: f.date, f }))].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const tl = ev.length ? ev.map(e => {
+    if (e.f) return `<div class="tl"><span class="dot x-brand">${ic('package')}</span><div class="tl-h">Refill dispensed <span>· ${fmtDate(e.date)}</span></div><div class="tl-b">${sar(e.f.amount, 2)} · ${rxName(e.f.rxtype)}</div></div>`;
+    const m = outcomeMeta(e.l.outcome);
+    return `<div class="tl"><span class="dot ${m.x}">${ic(m.icon)}</span><div class="tl-h">${m.label} <span>· ${fmtDate(e.date)}</span></div>${e.l.note ? `<div class="tl-b">${esc(e.l.note)}</div>` : ''}${e.l.next ? `<div class="tl-b muted">Follow-up ${fmtDate(e.l.next)}</div>` : ''}</div>`;
+  }).join('') : '<div class="muted sm">No calls or refills recorded yet</div>';
+  $('drBody').innerHTML = `
+    <div class="dr-sec"><div class="dr-sec-t">Revenue per refill</div>
+      <div class="money">
+        <div><div class="l">Baseline</div><div class="v">${sar(r.base)}</div></div>
+        <div><div class="l">Upsell</div><div class="v t-amber">${r.upsell ? '+' + sar(r.upsell) : '—'}</div></div>
+        <div><div class="l">Potential</div><div class="v t-brand">${sar(r.est)}</div></div>
+      </div>
+      ${r.upsell ? `<div class="hint" style="margin-top:10px">Last dispensed ${sar(r.last, 2)} of a ${sar(r.full, 2)} prescription.</div>` : ''}
+    </div>
+    <div class="dr-sec"><div class="dr-sec-t">Clinical &amp; cover</div><dl class="kv">
+      <dt>Condition</dt><dd>${esc(p.condition) || '—'}</dd>
+      <dt>Insurance</dt><dd>${esc(p.insurance) || '—'}</dd>
+      <dt>Hospital / clinic</dt><dd>${esc(p.hospital) || '—'}</dd>
+    </dl></div>
+    <div class="dr-sec"><div class="dr-sec-t">Medicines · ${p.meds.length}</div>${meds}</div>
+    ${p.notes ? `<div class="dr-sec"><div class="dr-sec-t">Notes</div><div style="white-space:pre-wrap;font-size:14px;color:var(--text-2)">${esc(p.notes)}</div></div>` : ''}
+    <div class="dr-sec"><div class="dr-sec-t">Documents</div>${docHTML}</div>
+    <div class="dr-sec" style="border-bottom:0"><div class="dr-sec-t">Activity</div>${tl}</div>`;
+  $('drBody').scrollTop = 0;
+  $('drawer').classList.add('open'); $('drawer').setAttribute('aria-hidden', 'false'); $('scrim').classList.add('open');
+}
+function closeDetail() { $('drawer').classList.remove('open'); $('drawer').setAttribute('aria-hidden', 'true'); $('scrim').classList.remove('open'); state.detailId = null; }
+function refreshDetail() { if (state.detailId && getP(state.detailId)) openDetail(state.detailId); else closeDetail(); }
+function viewFile(pid, i) {
+  const f = (files[pid] || [])[i]; if (!f) return;
+  fetch(f.dataUrl).then(r => r.blob()).then(b => { const u = URL.createObjectURL(b); window.open(u, '_blank'); setTimeout(() => URL.revokeObjectURL(u), 60000); });
+}
+
+// ═════════ MODALS ═════════
+const openModal = id => $(id).classList.add('open');
+const closeModal = id => $(id).classList.remove('open');
+function openForm(id = null) {
+  state.editId = id;
+  const p = id ? getP(id) : null;
+  $('pmT').textContent = p ? 'Edit patient' : 'New patient';
+  $('pmDel').hidden = !p;
+  const set = (k, v) => $(k).value = v ?? '';
+  set('f_name', p?.name); set('f_id', p?.id); set('f_phone', p?.phone); set('f_insurance', p?.insurance);
+  set('f_condition', p?.condition); set('f_hospital', p?.hospital); set('f_notes', p?.notes);
+  set('f_lastDate', p ? p.lastDate : todayISO());
+  const cyc = String(p ? p.cycle : 90);
+  if (![...$('f_cycle').options].some(o => o.value === cyc)) $('f_cycle').add(new Option(`${cyc} days`, cyc));
+  set('f_cycle', cyc); set('f_rxtype', p ? p.rxtype : 'full');
+  set('f_lastRev', p && p.lastRev ? p.lastRev : ''); set('f_fullRev', p && p.fullRev ? p.fullRev : '');
+  $('medRows').innerHTML = ''; (p && p.meds.length ? p.meds : [{}]).forEach(addMedRow);
+  state.tempFiles = p ? (files[p.id] || []).map(f => ({ ...f })) : [];
+  renderTempFiles();
+  document.querySelectorAll('#pm .bad').forEach(e => e.classList.remove('bad'));
+  calcForm(); openModal('pm'); $('pm').querySelector('.m-body').scrollTop = 0;
+  setTimeout(() => $('f_name').focus(), 60);
+}
+function addMedRow(m = {}) {
+  const row = document.createElement('div'); row.className = 'med-row';
+  row.innerHTML = `<input class="in" placeholder="Medicine name" value="${esc(m.name || '')}" aria-label="Medicine name">
+    <input class="in" placeholder="e.g. 90 tabs" value="${esc(m.qty || '')}" aria-label="Quantity or strength">
+    <select class="sel" aria-label="Dispensed by"><option value="us"${m.src === 'us' ? ' selected' : ''}>We dispense</option><option value="hospital"${m.src === 'hospital' ? ' selected' : ''}>Hospital</option><option value="partial"${m.src === 'partial' ? ' selected' : ''}>Split</option></select>
+    <button type="button" class="ib danger" aria-label="Remove medicine">${ic('minus')}</button>`;
+  row.querySelector('button').onclick = () => row.remove();
+  $('medRows').appendChild(row);
+}
+const readMeds = () => [...document.querySelectorAll('#medRows .med-row')].map(r => { const [n, q, s] = r.querySelectorAll('input,select'); return { name: n.value.trim(), qty: q.value.trim(), src: s.value }; }).filter(m => m.name);
+function calcForm() {
+  const dr = { rxtype: $('f_rxtype').value, lastRev: $('f_lastRev').value, fullRev: $('f_fullRev').value }, r = revenue(dr);
+  $('c_base').textContent = sar(r.base, 2); $('c_up').textContent = sar(r.upsell, 2); $('c_est').textContent = sar(r.est, 2);
+  $('c_baseF').textContent = dr.rxtype === 'full' && !r.last && r.full ? 'Full value (no last value)' : 'Last dispensed value';
+  $('c_upF').textContent = dr.rxtype === 'full' ? 'Not applicable to Full Rx' : r.full > r.last ? `${fmtN(r.full, 2)} − ${fmtN(r.last, 2)}` : 'Full value must exceed last';
+  $('c_estF').textContent = `${fmtN(r.base, 2)} + ${fmtN(r.upsell, 2)}`;
+  const ld = $('f_lastDate').value;
+  if (parseISO(ld)) { const due = addDays(ld, parseInt($('f_cycle').value) || 90); $('f_due').innerHTML = `Next refill due <b>${fmtDate(due)}</b> · ${relDays(diffDays(todayISO(), due)).toLowerCase()}`; }
+  else $('f_due').textContent = '';
+}
+function nextId() {
+  let mx = 0; patients.forEach(p => { const m = /^P(\d+)$/.exec(p.id); if (m) mx = Math.max(mx, +m[1]); });
+  let id; do { id = 'P' + String(++mx).padStart(3, '0'); } while (getP(id)); return id;
+}
+function saveForm() {
+  const name = $('f_name').value.trim(), phone = $('f_phone').value.trim(), lastDate = $('f_lastDate').value;
+  let bad = false;
+  [['f_name', name], ['f_phone', phone], ['f_lastDate', parseISO(lastDate)]].forEach(([k, v]) => { $(k).classList.toggle('bad', !v); if (!v) bad = true; });
+  if (bad) return toast('Please complete the required fields', 'warn');
+  if (lastDate > todayISO()) { $('f_lastDate').classList.add('bad'); return toast('Last dispense date cannot be in the future', 'warn'); }
+  if (num($('f_lastRev').value) < 0 || num($('f_fullRev').value) < 0) return toast('Values cannot be negative', 'warn');
+  const old = state.editId ? getP(state.editId) : null;
+  const id = $('f_id').value.trim() || (old ? old.id : nextId());
+  if (getP(id) && id !== old?.id) { $('f_id').classList.add('bad'); return toast(`Patient ID ${id} is already in use`, 'warn'); }
+  const rec = normalise({ ...(old || { logs: [], refills: [] }), id, name, phone,
+    insurance: $('f_insurance').value.trim(), condition: $('f_condition').value.trim(), hospital: $('f_hospital').value.trim(),
+    lastDate, cycle: parseInt($('f_cycle').value), rxtype: $('f_rxtype').value,
+    lastRev: num($('f_lastRev').value), fullRev: num($('f_fullRev').value), meds: readMeds(), notes: $('f_notes').value.trim() });
+  if (old) { patients[patients.indexOf(old)] = rec; if (old.id !== id) delete files[old.id]; if (state.detailId === old.id) state.detailId = id; }
+  else patients.push(rec);
+  if (state.tempFiles.length) files[id] = state.tempFiles; else delete files[id];
+  persist(); persistFiles(); closeModal('pm');
+  toast(old ? 'Patient updated' : `${name} added`, 'ok'); render(); if (state.detailId) refreshDetail();
+}
+function handleFiles(list) {
+  [...list].forEach(file => {
+    if (file.size > 5 * 1024 * 1024) return toast(`${file.name} is larger than 5 MB`, 'warn');
+    const rd = new FileReader();
+    rd.onload = e => { state.tempFiles.push({ name: file.name, type: file.type, dataUrl: e.target.result }); renderTempFiles(); };
+    rd.readAsDataURL(file);
+  });
+  $('fileIn').value = '';
+}
+const renderTempFiles = () => $('fileList').innerHTML = state.tempFiles.map((f, i) => `<div class="file">${ic(f.type && f.type.includes('pdf') ? 'file' : 'image')}<span class="file-n">${esc(f.name)}</span><button type="button" class="ib danger" data-rmfile="${i}" aria-label="Remove ${esc(f.name)}">${ic('x')}</button></div>`).join('');
+
+let confirmFn = null;
+function confirmDelete(id) {
+  const p = getP(id); if (!p) return;
+  $('cfT').textContent = `Delete ${p.name}?`;
+  $('cfS').textContent = `Record ${p.id}, its call history, refills and documents will be removed. This cannot be undone.`;
+  confirmFn = () => { patients = patients.filter(x => x.id !== id); delete files[id]; persist(); persistFiles(); if (state.detailId === id) closeDetail(); toast('Patient deleted', 'ok'); render(); };
+  openModal('cf');
+}
+function openCall(id) {
+  const p = getP(id); if (!p) return;
+  state.callId = id; state.outcome = null;
+  $('cmS').innerHTML = `${esc(p.name)} · <a href="tel:${tel(p.phone)}" class="t-brand">${esc(p.phone)}</a>`;
+  $('cmNote').value = ''; $('cmNext').value = ''; $('cmNext').classList.remove('bad');
+  document.querySelectorAll('.out').forEach(b => b.className = 'out');
+  openModal('cm');
+}
+function pickOutcome(o) {
+  state.outcome = o;
+  document.querySelectorAll('.out').forEach(b => b.className = 'out' + (b.dataset.out === o ? ' sel-' + o : ''));
+  const p = getP(state.callId), t = todayISO();
+  $('cmNext').value = o === 'miss' ? addDays(t, 2) : o === 'no' ? addDays(t, 1) : (p && dueDate(p) > t ? dueDate(p) : addDays(t, 3));
+}
+function saveCall() {
+  if (!state.outcome) return toast('Choose a call outcome', 'warn');
+  const p = getP(state.callId); if (!p) return;
+  const next = $('cmNext').value;
+  if (next && next < todayISO()) { $('cmNext').classList.add('bad'); return toast('Follow-up date cannot be in the past', 'warn'); }
+  p.logs.unshift({ date: todayISO(), outcome: state.outcome, note: $('cmNote').value.trim(), next });
+  persist(); closeModal('cm');
+  toast(state.outcome === 'won' ? `${p.name} confirmed coming` : 'Call logged', 'ok'); render(); refreshDetail();
+}
+function openRefill(id) {
+  const p = getP(id); if (!p) return;
+  state.refillId = id; const r = revenue(p);
+  $('rmS').textContent = `${p.name} · due ${fmtDate(dueDate(p))}`;
+  $('rmDate').value = todayISO(); $('rmAmt').value = r.est ? r.est.toFixed(2) : ''; $('rmType').value = r.upsell ? 'full' : p.rxtype;
+  refillHint(); openModal('rm');
+}
+function refillHint() {
+  const p = getP(state.refillId); if (!p) return;
+  const d = parseISO($('rmDate').value) ? $('rmDate').value : todayISO();
+  $('rmHint').innerHTML = `Next refill will be due <b>${fmtDate(addDays(d, p.cycle))}</b> (${p.cycle}-day cycle). The amount becomes the new last-dispensed value.`;
+}
+function saveRefill() {
+  const p = getP(state.refillId); if (!p) return;
+  const date = $('rmDate').value, amount = num($('rmAmt').value), type = $('rmType').value;
+  if (!parseISO(date)) return toast('Enter the dispense date', 'warn');
+  if (date > todayISO()) return toast('Dispense date cannot be in the future', 'warn');
+  if (amount < 0) return toast('Amount cannot be negative', 'warn');
+  p.refills.unshift({ date, amount, rxtype: type });
+  p.lastDate = date; p.lastRev = amount; p.rxtype = type;
+  if (type === 'full' && amount > p.fullRev) p.fullRev = amount;
+  normalise(p); persist(); closeModal('rm');
+  toast(`Refill recorded · next due ${fmtDate(dueDate(p))}`, 'ok'); render(); refreshDetail();
+}
+
+// ═════════ DATA ═════════
+function download(name, content, type) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content], { type })); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function exportCSV() {
+  const head = ['ID', 'Name', 'Phone', 'Insurance', 'Condition', 'Hospital', 'Last dispense', 'Cycle (days)', 'Dispense type', 'Next due', 'Days to due', 'Cycle progress %', 'Last dispensed (SAR)', 'Full Rx value (SAR)', 'Baseline (SAR)', 'Upsell (SAR)', 'Potential (SAR)', 'Last call', 'Last outcome', 'Next follow-up', 'Medicines'];
+  const rows = patients.map(p => { const r = revenue(p), l = lastLog(p);
+    return [p.id, p.name, p.phone, p.insurance, p.condition, p.hospital, p.lastDate, p.cycle, rxName(p.rxtype), dueDate(p), daysToDue(p), Math.round(cycleProgress(p).pct * 100),
+      r.last.toFixed(2), r.full.toFixed(2), r.base.toFixed(2), r.upsell.toFixed(2), r.est.toFixed(2), l ? l.date : '', l ? outcomeMeta(l.outcome).label : '', l ? l.next || '' : '', p.meds.map(m => `${m.name} ${m.qty}`.trim()).join('; ')]; });
+  download(`ChronicRx_Export_${todayISO()}.csv`, '﻿' + [head, ...rows].map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
+  toast('Exported to CSV', 'ok');
+}
+function backup() {
+  download(`ChronicRx_Backup_${todayISO()}.json`, JSON.stringify({ app: 'ChronicRx', version: 3, exported: new Date().toISOString(), patients, files }), 'application/json');
+  toast('Backup downloaded', 'ok');
+}
+function restore(file) {
+  const rd = new FileReader();
+  rd.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result), list = Array.isArray(data) ? data : data.patients;
+      if (!Array.isArray(list) || list.some(p => !p || !p.id || !p.name)) throw 0;
+      patients = list.map(normalise);
+      files = data && data.files && typeof data.files === 'object' && !Array.isArray(data.files) ? data.files : {};
+      persist(); persistFiles(); closeDetail(); render(); toast(`Restored ${plural(patients.length, 'patient')}`, 'ok');
+    } catch { toast('That file is not a valid ChronicRx backup', 'warn'); }
+  };
+  rd.readAsText(file); $('restoreIn').value = '';
+}
+
+// ═════════ TOAST ═════════
+let tT;
+function toast(msg, kind = 'ok') {
+  const t = $('toast'); t.className = 'toast ' + kind;
+  t.innerHTML = ic(kind === 'warn' ? 'alert' : 'checkCircle') + `<span>${esc(msg)}</span>`;
+  void t.offsetWidth; t.classList.add('show'); clearTimeout(tT); tT = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ═════════ EVENTS ═════════
+function toggleMenu(open) { const m = $('menu'), o = open ?? !m.classList.contains('open'); m.classList.toggle('open', o); $('menuBtn').setAttribute('aria-expanded', o); }
+document.addEventListener('click', e => {
+  if (!e.target.closest('.menu-wrap')) toggleMenu(false);
+  const el = e.target.closest('[data-nav],[data-act],[data-call],[data-refill],[data-edit],[data-open],[data-close],[data-out],[data-rmfile],[data-view],[data-dr],[data-h],[data-stop]');
+  if (!el) return;
+  const d = el.dataset;
+  if (d.nav) { e.preventDefault(); closeDetail(); return navigate(d.nav); }
+  if (d.act) { toggleMenu(false); return ({ add: () => openForm(), export: exportCSV, backup, restore: () => $('restoreIn').click() })[d.act](); }
+  if (d.call) return openCall(d.call);
+  if (d.refill) return openRefill(d.refill);
+  if (d.edit) return openForm(d.edit);
+  if (d.close !== undefined) return closeModal(el.closest('.overlay').id);
+  if (d.out) return pickOutcome(d.out);
+  if (d.rmfile) { state.tempFiles.splice(+d.rmfile, 1); return renderTempFiles(); }
+  if (d.view) return viewFile(state.detailId, +d.view);
+  if (d.h) { state.horizon = +d.h; return renderForecast(); }
+  if (d.dr) { const id = state.detailId; return ({ call: openCall, refill: openRefill, edit: openForm, delete: confirmDelete })[d.dr](id); }
+  if (d.stop !== undefined) return;
+  if (d.open) return openDetail(d.open);
+});
+$('menuBtn').onclick = e => { e.stopPropagation(); toggleMenu(); };
+document.querySelectorAll('.overlay').forEach(o => o.addEventListener('mousedown', e => { if (e.target === o) closeModal(o.id); }));
+$('scrim').onclick = closeDetail;
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const m = [...document.querySelectorAll('.overlay.open')].pop();
+    if (m) return closeModal(m.id);
+    if ($('menu').classList.contains('open')) return toggleMenu(false);
+    if (state.detailId) return closeDetail();
+  }
+  if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !document.querySelector('.overlay.open')) {
+    e.preventDefault();
+    if ($('navSearch').offsetParent) return $('navSearch').focus();
+    if (state.view !== 'patients') navigate('patients:all');
+    $('ptSearch').focus();
+  }
+});
+function setSearch(v, from) { state.search = v; if (from !== 'nav') $('navSearch').value = v; if (from !== 'pt') $('ptSearch').value = v; }
+$('navSearch').addEventListener('input', e => { setSearch(e.target.value, 'nav'); if (state.view !== 'patients') navigate('patients:all', false); else renderPatients(); });
+$('ptSearch').addEventListener('input', e => { setSearch(e.target.value, 'pt'); renderPatients(); });
+$('ptType').onchange = e => { state.type = e.target.value; renderPatients(); };
+$('ptSort').onchange = e => { state.sort = e.target.value; renderPatients(); };
+['f_lastRev', 'f_fullRev'].forEach(k => $(k).addEventListener('input', calcForm));
+['f_rxtype', 'f_cycle', 'f_lastDate'].forEach(k => $(k).addEventListener('change', calcForm));
+['f_name', 'f_phone', 'f_lastDate', 'f_id'].forEach(k => $(k).addEventListener('input', () => $(k).classList.remove('bad')));
+$('addMed').onclick = () => addMedRow();
+$('pmSave').onclick = saveForm;
+$('pmDel').onclick = () => { const id = state.editId; closeModal('pm'); confirmDelete(id); };
+$('cmSave').onclick = saveCall;
+$('rmSave').onclick = saveRefill;
+$('rmDate').addEventListener('change', refillHint);
+$('cfOk').onclick = () => { closeModal('cf'); if (confirmFn) confirmFn(); confirmFn = null; };
+const drop = $('drop');
+drop.onclick = () => $('fileIn').click();
+drop.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('fileIn').click(); } };
+$('fileIn').onchange = e => handleFiles(e.target.files);
+['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('drag'); }));
+['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('drag'); }));
+drop.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+$('restoreIn').onchange = e => { if (e.target.files[0]) restore(e.target.files[0]); };
+let rT; window.addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(() => { if (state.view === 'overview') drawDueChart(); if (state.view === 'forecast') renderForecast(); }, 150); });
+let lastDay = todayISO(); setInterval(() => { if (todayISO() !== lastDay) { lastDay = todayISO(); render(); } }, 60000);
+
+// ═════════ INIT ═════════
+hydrate();
+const h0 = location.hash.replace('#', '').split('/');
+navigate(h0[0] === 'patients' ? 'patients:' + (h0[1] || 'all') : (h0[0] || 'overview'), false);
+</script>
+</body>
+</html>
