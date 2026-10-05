@@ -509,6 +509,7 @@
     .dr-cycle { gap: 14px; padding: 14px; }
   }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
 </head>
 <body>
 
@@ -549,8 +550,8 @@
           <button data-act="backup" role="menuitem"><i data-ic="save"></i><div>Download backup<div class="m-sub">All data including documents</div></div></button>
           <button data-act="restore" role="menuitem"><i data-ic="upload"></i><div>Restore from backup<div class="m-sub">Replaces the current data</div></div></button>
           <hr>
-          <button data-act="inboxSync" role="menuitem"><i data-ic="send"></i><div>Sync Telegram inbox<div class="m-sub">Import patients added via the Telegram bot</div></div></button>
-          <button data-act="inboxSetup" role="menuitem"><i data-ic="database"></i><div>Telegram inbox settings<div class="m-sub">n8n address and app key</div></div></button>
+          <button data-act="cloudRefresh" role="menuitem"><i data-ic="repeat"></i><div>Refresh from cloud<div class="m-sub">Latest from every device and Telegram</div></div></button>
+          <button data-act="signOut" role="menuitem"><i data-ic="x"></i><div>Sign out<div class="m-sub" id="whoami">Not signed in</div></div></button>
           <hr>
           <div class="credits">Created by <strong>Dr. Mohamed Baydon</strong><br>Area Supervisor <strong>Dr. Mahmoud Abdelgalil</strong></div>
         </div>
@@ -880,6 +881,24 @@
 </div>
 
 <input type="file" id="restoreIn" accept=".json,application/json" hidden>
+
+<!-- SIGN IN -->
+<div class="overlay" id="auth">
+  <div class="modal md" role="dialog" aria-modal="true" aria-labelledby="authT">
+    <div class="m-head">
+      <span class="chip-ic x-brand"><i data-ic="userPlus"></i></span>
+      <div><div class="m-t" id="authT">Sign in to ChronicRx</div><div class="m-s">Patient data is stored securely and shared by your devices</div></div>
+    </div>
+    <div class="m-body">
+      <div class="field" style="margin-top:18px"><label for="authEmail">Email</label><input class="in" id="authEmail" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com"></div>
+      <div class="hint" id="authMsg" style="margin-top:10px"></div>
+    </div>
+    <div class="m-foot">
+      <button class="btn" id="authOut" hidden>Sign out</button>
+      <button class="btn btn-brand" id="authGo"><i data-ic="send"></i>Email me a sign-in link</button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
@@ -958,14 +977,17 @@ function avatar(p) {
   return `<span class="av" style="background:${bg};color:${fg}">${esc(ini)}</span>`;
 }
 
-// ═════════ STORAGE (same keys as earlier versions — existing data is kept) ═════════
-const KEY = 'chronicrx_patients', FKEY = 'chronicrx_files';
+// ═════════ STORAGE ═════════
+// Patients and documents live in Supabase (see CLOUD below); this device keeps a cached copy for an instant start.
+// KEY / FKEY are the older browser-only stores, read once to upload this device's earlier data.
+const KEY = 'chronicrx_patients', FKEY = 'chronicrx_files', CACHE = 'chronicrx_cloud_cache', MIGRATED = 'chronicrx_uploaded_to_cloud';
 function load(k, fb) { try { const v = JSON.parse(localStorage.getItem(k)); return v ?? fb; } catch { return fb; } }
-function neverSaved() { try { return localStorage.getItem(KEY) === null; } catch { return true; } }
-let patients = load(KEY, []); if (!Array.isArray(patients)) patients = [];
-let files = load(FKEY, {}); if (!files || typeof files !== 'object' || Array.isArray(files)) files = {};
-function persist() { try { localStorage.setItem(KEY, JSON.stringify(patients)); } catch { toast('Could not save — browser storage unavailable', 'warn'); } }
-function persistFiles() { try { localStorage.setItem(FKEY, JSON.stringify(files)); } catch { toast('Documents too large for browser storage — kept for this session only', 'warn'); } }
+const SUPA_URL = 'https://eaotjaeqtysbdhddjcao.supabase.co';
+// Public by design: what a signed-in user can read or write is enforced by row-level security in the database.
+const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVhb3RqYWVxdHlzYmRoZGRqY2FvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyMjMxMjAsImV4cCI6MjEwNjc5OTEyMH0.Mg0IEKHHs6v3VB9ya-Oc2YunSgwQVR6IILtP8Nrx6fM';
+const sb = window.supabase ? window.supabase.createClient(SUPA_URL, SUPA_ANON, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }) : null;
+let patients = [], files = {};
+const synced = {}; // patient id → its row as last saved to / loaded from the cloud
 
 // ═════════ CORE CALCULATIONS ═════════
 function revenue(p) {
@@ -1008,19 +1030,6 @@ const FILTERS = {
   callback: { title: 'Call-backs due',          test: p => callbackDue(p) },
 };
 
-// ═════════ SEED (first run only) ═════════
-if (!patients.length && neverSaved()) {
-  const d = n => addDays(todayISO(), n);
-  patients = [
-    { id:'P001', name:'Ahmed Al-Rashid', phone:'055 010 1101', insurance:'Bupa Arabia', condition:'Diabetes T2, Hypertension', hospital:'King Fahad Medical City', lastDate:d(-92), cycle:90, rxtype:'partial', lastRev:68, fullRev:145, meds:[{name:'Metformin 1000mg',qty:'90 tabs',src:'us'},{name:'Amlodipine 10mg',qty:'90 tabs',src:'hospital'},{name:'Atorvastatin 40mg',qty:'90 tabs',src:'hospital'}], notes:'Very cooperative. Asks for all items when called.', logs:[{date:d(-10),outcome:'won',note:'Confirmed coming next week. Requesting full Rx.',next:d(-3)}] },
-    { id:'P002', name:'Fatima Khalil', phone:'055 020 2202', insurance:'Tawuniya', condition:'Asthma, GERD', hospital:'Dr. Sulaiman Al Habib', lastDate:d(-88), cycle:90, rxtype:'full', lastRev:112, fullRev:112, meds:[{name:'Seretide 250 inhaler',qty:'2 units',src:'us'},{name:'Omeprazole 20mg',qty:'90 caps',src:'us'}], notes:'Reliable refiller.', logs:[] },
-    { id:'P003', name:'Mohamed Saeed', phone:'055 030 3303', insurance:'MedGulf', condition:'Hypertension, CKD', hospital:'King Faisal Specialist Hospital', lastDate:d(-30), cycle:90, rxtype:'partial', lastRev:45, fullRev:180, meds:[{name:'Losartan 100mg',qty:'90 tabs',src:'us'},{name:'Furosemide 40mg',qty:'90 tabs',src:'hospital'},{name:'Allopurinol 300mg',qty:'90 tabs',src:'hospital'},{name:'Calcium + Vit D',qty:'90 tabs',src:'hospital'}], notes:'Hospital dispenses diuretics. We can request them all.', logs:[] },
-    { id:'P004', name:'Sarah Johnson', phone:'055 040 4404', insurance:'AXA Cooperative', condition:'Hypothyroidism', hospital:'Dallah Hospital', lastDate:d(-60), cycle:60, rxtype:'full', lastRev:28, fullRev:28, meds:[{name:'Levothyroxine 100mcg',qty:'60 tabs',src:'us'}], notes:'', logs:[] },
-    { id:'P005', name:'Omar Farouq', phone:'055 050 5505', insurance:'Cigna', condition:'Diabetes T1, Neuropathy', hospital:'King Khalid University Hospital', lastDate:d(-5), cycle:90, rxtype:'none', lastRev:0, fullRev:220, meds:[{name:'Insulin Lantus',qty:'5 pens',src:'hospital'},{name:'Insulin NovoRapid',qty:'5 pens',src:'hospital'},{name:'Pregabalin 150mg',qty:'90 caps',src:'hospital'}], notes:'Hospital dispenses everything. Has a copy. Worth calling when due.', logs:[] },
-    { id:'P006', name:'Layla Hamdan', phone:'055 060 6606', insurance:'Bupa Arabia', condition:'Hyperlipidaemia', hospital:'Riyadh Care Hospital', lastDate:d(-26), cycle:30, rxtype:'partial', lastRev:55, fullRev:90, meds:[{name:'Rosuvastatin 20mg',qty:'30 tabs',src:'us'},{name:'Ezetimibe 10mg',qty:'30 tabs',src:'hospital'}], notes:'', logs:[{date:d(0),outcome:'miss',note:'Busy, asked to call back in two days.',next:d(2)}] },
-  ];
-  persist();
-}
 patients.forEach(normalise);
 
 // ═════════ STATE & ROUTING ═════════
@@ -1462,7 +1471,7 @@ function viewFile(pid, i) {
   if (f.path) {
     const w = window.open('', '_blank'); // opened now, inside the click, so it is not blocked as a pop-up
     docLinks([f.path]).then(l => { if (!l[f.path]) throw 0; if (w) w.location.href = l[f.path]; else window.open(l[f.path], '_blank'); })
-      .catch(() => { if (w) w.close(); toast('Could not open the document — check the Telegram inbox settings', 'warn'); });
+      .catch(() => { if (w) w.close(); toast('Could not open the document — check the internet connection', 'warn'); });
     return;
   }
   fetch(f.dataUrl).then(r => r.blob()).then(b => { const u = URL.createObjectURL(b); window.open(u, '_blank'); setTimeout(() => URL.revokeObjectURL(u), 60000); });
@@ -1526,6 +1535,8 @@ function saveForm() {
   const prevDocs = old ? files[old.id] || [] : [];
   const id = $('f_id').value.trim() || (old ? old.id : nextId());
   if (getP(id) && id !== old?.id) { $('f_id').classList.add('bad'); return toast(`Patient ID ${id} is already in use`, 'warn'); }
+  const twin = patients.find(x => x !== old && personKey(x) === personKey({ name, phone }));
+  if (twin) { $('f_phone').classList.add('bad'); return toast(`${twin.name} (${twin.id}) already has this name and phone`, 'warn'); }
   const rec = normalise({ ...(old || { logs: [], refills: [] }), id, name, phone,
     insurance: $('f_insurance').value.trim(), condition: $('f_condition').value.trim(), hospital: $('f_hospital').value.trim(),
     lastDate, cycle: parseInt($('f_cycle').value), rxtype: $('f_rxtype').value,
@@ -1629,80 +1640,68 @@ function restore(file) {
     try {
       const data = JSON.parse(e.target.result), list = Array.isArray(data) ? data : data.patients;
       if (!Array.isArray(list) || list.some(p => !p || !p.id || !p.name)) throw 0;
+      if (!confirm(`Replace ALL patients — on every device — with the ${list.length} in this backup?`)) return;
       patients = list.map(normalise);
       files = data && data.files && typeof data.files === 'object' && !Array.isArray(data.files) ? data.files : {};
-      persist(); persistFiles(); closeDetail(); render(); toast(`Restored ${plural(patients.length, 'patient')}`, 'ok');
+      persist(); closeDetail(); render(); moveDocsToCloud(); toast(`Restored ${plural(patients.length, 'patient')}`, 'ok');
     } catch { toast('That file is not a valid ChronicRx backup', 'warn'); }
   };
   rd.readAsText(file); $('restoreIn').value = '';
 }
 
-// ═════════ TELEGRAM INBOX (patients added via the n8n Telegram bot) ═════════
-const IKEY = 'chronicrx_inbox';
-let inbox = load(IKEY, {}); if (!inbox || typeof inbox !== 'object' || Array.isArray(inbox)) inbox = {};
-if (!Array.isArray(inbox.seen)) inbox.seen = [];
-if (!Array.isArray(inbox.pending)) inbox.pending = [];
-function persistInbox() { try { localStorage.setItem(IKEY, JSON.stringify(inbox)); } catch { /* settings kept for this session only */ } }
-function setupInbox() {
-  const url = prompt('n8n address, e.g. https://n8n.example.com\nLeave empty to disconnect.', inbox.url || '');
-  if (url === null) return;
-  if (!url.trim()) { delete inbox.url; delete inbox.key; persistInbox(); return toast('Telegram inbox disconnected', 'ok'); }
-  const key = prompt('App key — the value of the "ChronicRx App Key" credential in n8n', inbox.key || '');
-  if (key === null || !key.trim()) return;
-  inbox.url = url.trim().replace(/\/+$/, ''); inbox.key = key.trim(); persistInbox();
-  syncInbox(true);
-}
-// ── Cloud documents: files live in a private Supabase bucket; n8n hands out short-lived upload/view links.
-// A document is either { name, type, dataUrl } (still in this browser) or { name, type, size, path } (in the cloud).
-const cloudReady = () => !!(inbox.url && inbox.key);
-async function n8nJson(hook, body) {
-  const r = await fetch(`${inbox.url}/webhook/${hook}`, { method: 'POST', headers: { 'X-ChronicRx-Key': inbox.key, 'Content-Type': 'application/json' }, body: JSON.stringify(body), cache: 'no-store' });
-  if (!r.ok) throw new Error(`server replied ${r.status}`);
-  return r.json();
-}
-async function docLinks(paths) {
-  const { links } = await n8nJson('chronicrx-file-links', { paths });
-  return Object.fromEntries((Array.isArray(links) ? links : []).map(l => [l.path, l.url]));
-}
-function deleteDocs(paths) {
-  paths = paths.filter(p => !p.startsWith('tg/')); // Telegram uploads are shared by every device
-  if (cloudReady() && paths.length) n8nJson('chronicrx-file-delete', { paths }).catch(() => {});
-}
-async function uploadDoc(pid, f) {
-  const blob = await fetch(f.dataUrl).then(r => r.blob());
-  const type = blob.type || f.type;
-  const { path, uploadUrl } = await n8nJson('chronicrx-upload-url', { pid, name: f.name, type });
-  if (!path || !uploadUrl) throw new Error('no upload link');
-  const fd = new FormData(); fd.append('cacheControl', '3600'); fd.append('', blob, f.name); // same request shape as supabase-js uploadToSignedUrl
-  const r = await fetch(uploadUrl, { method: 'PUT', headers: { 'x-upsert': 'false' }, body: fd });
-  if (!r.ok) throw new Error(`upload failed (${r.status})`);
-  return { name: f.name, type, size: blob.size, path, ...(f.src ? { src: f.src } : {}) };
-}
-// Moves documents still held in browser storage to the cloud (one patient, or all). Stops at the first failure.
-let moving = false;
-async function moveDocsToCloud(only) {
-  if (!cloudReady() || moving) return 0;
-  moving = true; let moved = 0;
-  try {
-    for (const pid of only ? [only] : Object.keys(files)) {
-      for (const f of [...(files[pid] || [])]) {
-        if (!f.dataUrl || f.path) continue;
-        const up = await uploadDoc(pid, f);
-        const cur = files[pid], j = cur ? cur.indexOf(f) : -1; // the patient may have been edited or deleted meanwhile
-        if (j < 0) { deleteDocs([up.path]); continue; }
-        cur[j] = up; moved++;
+// ═════════ CLOUD: Supabase is the single source of truth, shared live by every device ═════════
+// Patients are rows in public.patients (row-level security: approved staff emails only); documents live in the
+// private patient-docs bucket. A document is { name, type, size, path[, src] } once in the cloud, or
+// { name, type, dataUrl } while it is still waiting to upload from this device.
+const rowOf = p => ({
+  id: p.id, name: p.name, phone: p.phone || '', insurance: p.insurance || '', condition: p.condition || '', hospital: p.hospital || '',
+  last_date: p.lastDate, cycle: p.cycle, rxtype: p.rxtype, last_rev: num(p.lastRev), full_rev: num(p.fullRev),
+  meds: p.meds || [], notes: p.notes || '', logs: p.logs || [], refills: p.refills || [],
+  docs: (files[p.id] || []).filter(f => f.path).map(f => ({ name: f.name, type: f.type, size: f.size || 0, path: f.path, ...(f.src ? { src: f.src } : {}) }))
+});
+const patientOf = r => normalise({ id: r.id, name: r.name, phone: r.phone, insurance: r.insurance, condition: r.condition, hospital: r.hospital,
+  lastDate: r.last_date, cycle: r.cycle, rxtype: r.rxtype, lastRev: Number(r.last_rev), fullRev: Number(r.full_rev),
+  meds: r.meds || [], notes: r.notes || '', logs: r.logs || [], refills: r.refills || [] });
+const rowKey = p => JSON.stringify(rowOf(p));
+function cacheLocally() { try { localStorage.setItem(CACHE, JSON.stringify({ patients, files: Object.fromEntries(Object.entries(files).map(([k, v]) => [k, v.filter(f => f.path)])) })); } catch { /* cache is optional */ } }
+
+// Pushes every change since the last save (new, edited or deleted patients). Failures are retried.
+let pushing = null, pushAgain = false, pushWarned = false;
+function persist() {
+  cacheLocally();
+  if (!cloud.ready) return;
+  if (pushing) { pushAgain = true; return; }
+  pushing = (async () => {
+    const live = new Set(patients.map(p => p.id));
+    const gone = Object.keys(synced).filter(id => !live.has(id));
+    const changed = patients.filter(p => synced[p.id] !== rowKey(p));
+    try {
+      if (gone.length) { const { error } = await sb.from('patients').delete().in('id', gone); if (error) throw error; gone.forEach(id => delete synced[id]); }
+      for (const p of changed) {
+        const row = rowOf(p), key = JSON.stringify(row);
+        const { error } = await sb.from('patients').upsert(row);
+        if (error) {
+          if (error.code === '23505') { toast(`${p.name} is already on file with the same phone — not saved`, 'warn'); continue; }
+          throw error;
+        }
+        synced[p.id] = key;
       }
+      pushWarned = false;
+    } catch (e) {
+      if (!pushWarned) toast('Not saved to the cloud yet — will retry when online', 'warn');
+      pushWarned = true; setTimeout(persist, 20000);
+    } finally {
+      pushing = null;
+      if (pushAgain) { pushAgain = false; persist(); }
     }
-  } catch { /* offline or storage not configured yet: retried on the next sync */ }
-  finally {
-    moving = false;
-    if (moved) { persistFiles(); if (state.detailId) refreshDetail(); }
-  }
-  return moved;
+  })();
 }
-let syncing = false, lastSync = 0;
+const persistFiles = persist; // documents are part of the patient row
+
+// ── Documents
+const BUCKET = 'patient-docs';
 const blobToDataUrl = b => new Promise((ok, fail) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = fail; r.readAsDataURL(b); });
-// Phone photos are large and browser storage is small: cap the long side at 1600px, re-encode as JPEG.
+// Phone photos are large: cap the long side at 1600px and re-encode as JPEG (only when that makes the file smaller).
 async function shrinkImage(blob) {
   try {
     const bmp = await createImageBitmap(blob);
@@ -1714,93 +1713,161 @@ async function shrinkImage(blob) {
     return out && out.size < blob.size ? out : blob;
   } catch { return blob; }
 }
-// Downloads one attachment of an inbox row through n8n (which fetches it from Telegram on demand).
-async function fetchInboxDoc({ rowId, i, name, type, fileId }) {
-  const r = await fetch(`${inbox.url}/webhook/chronicrx-file?rowId=${encodeURIComponent(rowId)}&i=${i}`, { headers: { 'X-ChronicRx-Key': inbox.key }, cache: 'no-store' });
-  if (!r.ok) throw new Error(`server replied ${r.status}`);
-  let b = await r.blob();
-  if (!b.type && type) b = new Blob([b], { type });
-  if (/^image\//.test(b.type)) b = await shrinkImage(b);
-  if (b.size > 5 * 1024 * 1024) throw new Error('larger than 5 MB');
-  let fn = String(name || `document-${i + 1}`);
-  if (b.type === 'image/jpeg' && /\.png$/i.test(fn)) fn = fn.replace(/\.png$/i, '.jpg');
-  return { name: fn, type: b.type, dataUrl: await blobToDataUrl(b), src: fileId };
+const safeSeg = s => String(s || '').normalize('NFKD').replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+async function uploadDoc(pid, f) {
+  let blob = await fetch(f.dataUrl).then(r => r.blob());
+  if (/^image\//.test(blob.type)) blob = await shrinkImage(blob); // documents saved on this device before resizing existed
+  const type = blob.type || f.type;
+  const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'application/pdf': 'pdf' }[type] || 'bin';
+  const path = `${safeSeg(pid) || 'patient'}/${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}-${safeSeg(String(f.name).replace(/\.[^.]*$/, '')) || 'document'}.${ext}`;
+  const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: type, upsert: false });
+  if (error) throw error;
+  return { name: type === 'image/jpeg' ? String(f.name).replace(/\.png$/i, '.jpg') : f.name, type, size: blob.size, path };
 }
-async function syncInbox(manual = false) {
-  if (!inbox.url || !inbox.key) { if (manual) setupInbox(); return; }
-  if (syncing) return;
-  syncing = true; lastSync = Date.now();
-  const hdr = { 'X-ChronicRx-Key': inbox.key };
+async function docLinks(paths) {
+  const { data, error } = await sb.storage.from(BUCKET).createSignedUrls(paths, 600);
+  if (error) throw error;
+  return Object.fromEntries((data || []).filter(d => d.signedUrl).map(d => [d.path, d.signedUrl]));
+}
+function deleteDocs(paths) { if (cloud.ready && paths.length) sb.storage.from(BUCKET).remove(paths).catch(() => {}); }
+// Uploads documents still held on this device (one patient, or all). Stops at the first failure; retried later.
+let moving = false;
+async function moveDocsToCloud(only) {
+  if (!cloud.ready || moving) return 0;
+  moving = true; let moved = 0;
   try {
-    const r = await fetch(inbox.url + '/webhook/chronicrx-inbox', { headers: hdr, cache: 'no-store' });
-    if (!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'app key was rejected' : `server replied ${r.status}`);
-    const list = (await r.json()).patients;
-    const rowIds = [], added = [];
-    let dupes = 0, linked = 0;
-    const dupKey = p => `${String(p.name || '').trim().toLowerCase().replace(/\s+/g, ' ')}|${String(p.phone || '').replace(/\D/g, '')}`;
-    const importInboxPatient = p => {
-      let id = String(p.id || '').trim();
-      if (!id || getP(id)) id = nextId();
-      const meds = (Array.isArray(p.meds) ? p.meds : [])
-        .map(m => ({ name: String(m.name || '').trim(), qty: String(m.qty || '').trim(), src: ['us', 'hospital', 'partial'].includes(m.src) ? m.src : 'us' }))
-        .filter(m => m.name);
-      const rec = normalise({ id, name: String(p.name).trim(), phone: p.phone,
-        insurance: String(p.insurance || ''), condition: String(p.condition || ''), hospital: String(p.hospital || ''),
-        lastDate: p.lastDate, cycle: p.cycle, rxtype: p.rxtype, lastRev: p.lastRev, fullRev: p.fullRev,
-        meds, notes: String(p.notes || ''), logs: [], refills: [] });
-      patients.push(rec); added.push(rec);
-      return rec;
-    };
-    (Array.isArray(list) ? list : []).forEach(({ rowId, patient: p }) => {
-      if (rowId == null || !p || !String(p.name || '').trim()) return;
-      rowIds.push(rowId);
-      const firstTime = !inbox.seen.includes(rowId);
-      if (firstTime) inbox.seen.push(rowId);
-      // An incoming patient already on file (a double-tapped save, or a re-sent row) only contributes missing documents.
-      let rec = patients.find(x => dupKey(x) === dupKey(p));
-      if (rec) { if (firstTime) dupes++; }
-      else if (!firstTime) return; // imported before and since deleted in the app
-      else rec = importInboxPatient(p);
-      (Array.isArray(p.docs) ? p.docs : []).forEach((d, i) => {
-        if (!d || !d.fileId) return;
-        if ((files[rec.id] || []).some(f => f.src === d.fileId) || inbox.pending.some(j => j.pid === rec.id && j.fileId === d.fileId)) return;
-        // Stored in Supabase by n8n when the patient was saved: every device points at the same file, nothing to download.
-        if (d.path) { (files[rec.id] = files[rec.id] || []).push({ name: d.name, type: d.type, size: d.size || 0, path: d.path, src: d.fileId }); linked++; return; }
-        inbox.pending.push({ pid: rec.id, rowId, i, name: d.name, type: d.type, fileId: d.fileId });
-      });
-    });
-    if (added.length) { persist(); render(); }
-    inbox.seen = inbox.seen.slice(-500); persistInbox();
-    if (rowIds.length) fetch(inbox.url + '/webhook/chronicrx-inbox-ack', { method: 'POST', headers: { ...hdr, 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIds }) }).catch(() => {});
-
-    // Attachments: new ones plus any that failed on an earlier sync. Patients deleted since are dropped.
-    let docsAdded = linked;
-    if (linked) persistFiles();
-    const retry = [];
-    for (const job of inbox.pending.filter(j => getP(j.pid))) {
-      try {
-        const f = await fetchInboxDoc(job);
-        if (!(files[job.pid] || []).some(x => job.fileId && x.src === job.fileId)) { (files[job.pid] = files[job.pid] || []).push(f); docsAdded++; }
+    for (const pid of only ? [only] : Object.keys(files)) {
+      for (const f of [...(files[pid] || [])]) {
+        if (!f.dataUrl || f.path) continue;
+        const up = await uploadDoc(pid, f);
+        const cur = files[pid], j = cur ? cur.indexOf(f) : -1; // the patient may have been edited or deleted meanwhile
+        if (j < 0) { deleteDocs([up.path]); continue; }
+        cur[j] = up; moved++;
       }
-      catch { if ((job.tries = (job.tries || 0) + 1) < 5) retry.push(job); }
     }
-    const docsFailed = retry.length;
-    inbox.pending = retry; persistInbox();
-    if (docsAdded) { persistFiles(); render(); }
-    if (state.detailId && (added.length || docsAdded)) refreshDetail();
+  } catch { setTimeout(() => moveDocsToCloud(), 30000); }
+  finally {
+    moving = false;
+    if (moved) { persist(); if (state.detailId) refreshDetail(); }
+  }
+  return moved;
+}
 
-    const docMsg = (docsAdded ? ` with ${plural(docsAdded, 'document')}` : '') + (docsFailed ? ` · ${plural(docsFailed, 'document')} will retry` : '');
-    if (added.length) toast((added.length === 1 ? `${added[0].name} added from Telegram` : `${plural(added.length, 'patient')} added from Telegram`) + docMsg, docsFailed ? 'warn' : 'ok');
-    else if (docsAdded) toast(`${plural(docsAdded, 'document')} added from Telegram` + (docsFailed ? ` · ${plural(docsFailed, 'document')} will retry` : ''), docsFailed ? 'warn' : 'ok');
-    else if (docsFailed && manual) toast(`${plural(docsFailed, 'document')} could not be downloaded yet — will retry`, 'warn');
-    else if (dupes) toast(`${plural(dupes, 'patient')} from Telegram already on file — skipped`, 'ok');
-    else if (manual) toast('No new patients from Telegram', 'ok');
-    syncing = false;
-    const moved = await moveDocsToCloud();
-    if (moved && manual) toast(`${plural(moved, 'document')} moved to secure cloud storage`, 'ok');
-  } catch (e) {
-    if (manual) toast(`Telegram inbox: ${e.message || 'could not connect'}`, 'warn');
-  } finally { syncing = false; }
+// ── Live updates from other devices and the Telegram bot
+let renderT;
+const softRender = () => { clearTimeout(renderT); renderT = setTimeout(() => { render(); if (state.detailId) refreshDetail(); }, 150); };
+function applyRemote(r) {
+  const cur = getP(r.id);
+  if (cur && synced[r.id] !== undefined && rowKey(cur) !== synced[r.id]) return; // unsaved edits here win; they are pushed next
+  const p = patientOf(r);
+  const pendingHere = (files[r.id] || []).filter(f => f.dataUrl && !f.path);
+  files[r.id] = [...(r.docs || []), ...pendingHere];
+  if (!files[r.id].length) delete files[r.id];
+  if (cur) patients[patients.indexOf(cur)] = p; else patients.push(p);
+  synced[r.id] = rowKey(p);
+}
+function removeRemote(id) {
+  const cur = getP(id);
+  if (cur && rowKey(cur) !== synced[id]) return;
+  patients = patients.filter(p => p.id !== id); delete files[id]; delete synced[id];
+  if (state.detailId === id) closeDetail();
+}
+async function refreshFromCloud(manual = false) {
+  const { data, error } = await sb.from('patients').select('*');
+  if (error) { if (manual) toast('Could not reach the cloud — showing the last saved copy', 'warn'); return false; }
+  const ids = new Set(data.map(r => r.id));
+  Object.keys(synced).filter(id => !ids.has(id)).forEach(removeRemote);
+  data.forEach(applyRemote);
+  cloud.lastFetch = Date.now(); cacheLocally(); render(); if (state.detailId) refreshDetail();
+  if (manual) toast(`Up to date · ${plural(patients.length, 'patient')}`, 'ok');
+  return true;
+}
+
+// ── One-time upload of what this device stored before the cloud existed (merged by name + phone)
+const SEED_NAMES = new Set(['Ahmed Al-Rashid', 'Fatima Khalil', 'Mohamed Saeed', 'Sarah Johnson', 'Omar Farouq', 'Layla Hamdan']);
+const isDemo = p => SEED_NAMES.has(p.name) && /^055 0\d0 \d{4}$/.test(p.phone || '');
+const personKey = p => `${String(p.name || '').trim().toLowerCase().replace(/\s+/g, ' ')}|${String(p.phone || '').replace(/\D/g, '')}`;
+async function uploadThisDevice() {
+  if (localStorage.getItem(MIGRATED)) return;
+  const local = load(KEY, []), localFiles = load(FKEY, {});
+  const mine = (Array.isArray(local) ? local : []).filter(p => p && p.id && p.name && !isDemo(p)).map(p => normalise({ ...p }));
+  let added = 0, merged = 0;
+  for (const lp of mine) {
+    const ldocs = (localFiles[lp.id] || []).filter(f => f && (f.path || f.dataUrl));
+    const cp = patients.find(p => personKey(p) === personKey(lp));
+    if (!cp) {
+      if (getP(lp.id)) lp.id = nextId();
+      patients.push(lp); if (ldocs.length) files[lp.id] = ldocs; added++;
+      continue;
+    }
+    // Same person already in the cloud: keep the cloud record, add this device's calls, refills, notes and documents.
+    const seen = new Set(cp.logs.map(l => JSON.stringify(l)));
+    lp.logs.forEach(l => { if (!seen.has(JSON.stringify(l))) cp.logs.push(l); });
+    cp.logs.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    const seenR = new Set(cp.refills.map(r => JSON.stringify(r)));
+    lp.refills.forEach(r => { if (!seenR.has(JSON.stringify(r))) cp.refills.push(r); });
+    cp.refills.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    if (lp.lastDate > cp.lastDate) Object.assign(cp, { lastDate: lp.lastDate, lastRev: lp.lastRev, rxtype: lp.rxtype, cycle: lp.cycle, fullRev: Math.max(cp.fullRev, lp.fullRev) });
+    if (!cp.meds.length && lp.meds.length) cp.meds = lp.meds;
+    if (lp.notes && !cp.notes.includes(lp.notes)) cp.notes = [cp.notes, lp.notes].filter(Boolean).join('\n');
+    const have = files[cp.id] || [];
+    ldocs.forEach(f => { if (!have.some(h => (f.src && h.src === f.src) || (f.path && h.path === f.path))) have.push(f); });
+    if (have.length) files[cp.id] = have;
+    normalise(cp); merged++;
+  }
+  try { localStorage.setItem(MIGRATED, new Date().toISOString()); } catch { /* re-checked next time; merging is idempotent */ }
+  if (added || merged) {
+    persist(); render(); moveDocsToCloud();
+    toast(`This device's data is now in the cloud · ${plural(added, 'patient')} added${merged ? `, ${merged} merged` : ''}`, 'ok');
+  }
+}
+
+// ── Sign-in (email link) and start-up
+const cloud = { ready: false, lastFetch: 0, email: '' };
+function showAuth(msg, signedInAs) {
+  $('authMsg').innerHTML = msg || "We'll email you a sign-in link — no password needed.";
+  $('authOut').hidden = !signedInAs; $('authGo').hidden = !!signedInAs; $('authEmail').closest('.field').hidden = !!signedInAs;
+  openModal('auth'); if (!signedInAs) setTimeout(() => $('authEmail').focus(), 60);
+}
+async function sendLink() {
+  const email = $('authEmail').value.trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { $('authEmail').classList.add('bad'); return; }
+  $('authGo').disabled = true;
+  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
+  $('authGo').disabled = false;
+  $('authMsg').innerHTML = error ? `Could not send the link: ${esc(error.message)}` : `Check <b>${esc(email)}</b> and open the link on this device.`;
+}
+async function startCloud(session) {
+  if (cloud.ready) return;
+  cloud.email = session.user.email || '';
+  const { data: ok } = await sb.rpc('is_staff');
+  if (!ok) return showAuth(`<b>${esc(cloud.email)}</b> is not approved for ChronicRx. Ask the administrator to add it.`, true);
+  closeModal('auth'); $('whoami').textContent = cloud.email;
+  if (!(await refreshFromCloud())) { cloud.ready = true; return; } // offline: work from the cached copy; saves retry
+  cloud.ready = true;
+  await uploadThisDevice();
+  moveDocsToCloud();
+  sb.channel('patients').on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, ev => {
+    if (ev.eventType === 'DELETE') removeRemote(ev.old.id); else applyRemote(ev.new);
+    cacheLocally(); softRender();
+  }).subscribe();
+}
+async function boot() {
+  const cached = load(CACHE, null);
+  const { data: { session } } = await sb.auth.getSession();
+  if (session && cached && Array.isArray(cached.patients)) { // instant start from the last copy; the cloud refresh follows
+    patients = cached.patients.map(normalise); files = cached.files || {};
+    patients.forEach(p => { synced[p.id] = rowKey(p); });
+  }
+  const h0 = location.hash.replace('#', '').split('/');
+  navigate(h0[0] === 'patients' ? 'patients:' + (h0[1] || 'all') : (VIEWS.includes(h0[0]) ? h0[0] : 'overview'), false);
+  if (session) startCloud(session); else showAuth();
+  sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' && s) startCloud(s); if (ev === 'SIGNED_OUT') location.reload(); });
+}
+async function signOut() {
+  await sb.auth.signOut();
+  try { localStorage.removeItem(CACHE); } catch { /* nothing cached */ }
+  location.reload();
 }
 
 // ═════════ TOAST ═════════
@@ -1819,7 +1886,7 @@ document.addEventListener('click', e => {
   if (!el) return;
   const d = el.dataset;
   if (d.nav) { e.preventDefault(); closeDetail(); return navigate(d.nav); }
-  if (d.act) { toggleMenu(false); return ({ add: () => openForm(), export: exportCSV, backup, restore: () => $('restoreIn').click(), inboxSync: () => syncInbox(true), inboxSetup: setupInbox })[d.act](); }
+  if (d.act) { toggleMenu(false); return ({ add: () => openForm(), export: exportCSV, backup, restore: () => $('restoreIn').click(), cloudRefresh: () => refreshFromCloud(true), signOut })[d.act](); }
   if (d.call) return openCall(d.call);
   if (d.refill) return openRefill(d.refill);
   if (d.edit) return openForm(d.edit);
@@ -1833,12 +1900,16 @@ document.addEventListener('click', e => {
   if (d.open) return openDetail(d.open);
 });
 $('menuBtn').onclick = e => { e.stopPropagation(); toggleMenu(); };
-document.querySelectorAll('.overlay').forEach(o => o.addEventListener('mousedown', e => { if (e.target === o) closeModal(o.id); }));
+document.querySelectorAll('.overlay').forEach(o => o.addEventListener('mousedown', e => { if (e.target === o && o.id !== 'auth') closeModal(o.id); }));
+$('authGo').onclick = sendLink;
+$('authEmail').addEventListener('keydown', e => { $('authEmail').classList.remove('bad'); if (e.key === 'Enter') sendLink(); });
+$('authOut').onclick = signOut;
 $('scrim').onclick = closeDetail;
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     const m = [...document.querySelectorAll('.overlay.open')].pop();
-    if (m) return closeModal(m.id);
+    if (m && m.id !== 'auth') return closeModal(m.id);
+    if (m) return;
     if ($('menu').classList.contains('open')) return toggleMenu(false);
     if (state.detailId) return closeDetail();
   }
@@ -1877,10 +1948,10 @@ let lastDay = todayISO(); setInterval(() => { if (todayISO() !== lastDay) { last
 
 // ═════════ INIT ═════════
 hydrate();
-const h0 = location.hash.replace('#', '').split('/');
-navigate(h0[0] === 'patients' ? 'patients:' + (h0[1] || 'all') : (h0[0] || 'overview'), false);
-syncInbox();
-document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - lastSync > 60000) syncInbox(); });
+if (sb) boot(); else { navigate('overview', false); showAuth('Could not load the sign-in service — check the internet connection and reload.', false); $('authGo').hidden = true; }
+// Phones suspend background tabs: catch up when the app comes back to the front.
+document.addEventListener('visibilitychange', () => { if (!document.hidden && cloud.ready && Date.now() - cloud.lastFetch > 60000) refreshFromCloud(); });
+window.addEventListener('online', () => { if (cloud.ready) { persist(); moveDocsToCloud(); } });
 </script>
 </body>
 </html>
