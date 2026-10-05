@@ -1673,7 +1673,7 @@ async function uploadDoc(pid, f) {
   const fd = new FormData(); fd.append('cacheControl', '3600'); fd.append('', blob, f.name); // same request shape as supabase-js uploadToSignedUrl
   const r = await fetch(uploadUrl, { method: 'PUT', headers: { 'x-upsert': 'false' }, body: fd });
   if (!r.ok) throw new Error(`upload failed (${r.status})`);
-  return { name: f.name, type, size: blob.size, path };
+  return { name: f.name, type, size: blob.size, path, ...(f.src ? { src: f.src } : {}) };
 }
 // Moves documents still held in browser storage to the cloud (one patient, or all). Stops at the first failure.
 let moving = false;
@@ -1712,7 +1712,7 @@ async function shrinkImage(blob) {
   } catch { return blob; }
 }
 // Downloads one attachment of an inbox row through n8n (which fetches it from Telegram on demand).
-async function fetchInboxDoc({ rowId, i, name, type }) {
+async function fetchInboxDoc({ rowId, i, name, type, fileId }) {
   const r = await fetch(`${inbox.url}/webhook/chronicrx-file?rowId=${encodeURIComponent(rowId)}&i=${i}`, { headers: { 'X-ChronicRx-Key': inbox.key }, cache: 'no-store' });
   if (!r.ok) throw new Error(`server replied ${r.status}`);
   let b = await r.blob();
@@ -1721,7 +1721,7 @@ async function fetchInboxDoc({ rowId, i, name, type }) {
   if (b.size > 5 * 1024 * 1024) throw new Error('larger than 5 MB');
   let fn = String(name || `document-${i + 1}`);
   if (b.type === 'image/jpeg' && /\.png$/i.test(fn)) fn = fn.replace(/\.png$/i, '.jpg');
-  return { name: fn, type: b.type, dataUrl: await blobToDataUrl(b) };
+  return { name: fn, type: b.type, dataUrl: await blobToDataUrl(b), src: fileId };
 }
 async function syncInbox(manual = false) {
   if (!inbox.url || !inbox.key) { if (manual) setupInbox(); return; }
@@ -1735,13 +1735,7 @@ async function syncInbox(manual = false) {
     const rowIds = [], added = [];
     let dupes = 0;
     const dupKey = p => `${String(p.name || '').trim().toLowerCase().replace(/\s+/g, ' ')}|${String(p.phone || '').replace(/\D/g, '')}`;
-    const known = new Set(patients.map(dupKey));
-    (Array.isArray(list) ? list : []).forEach(({ rowId, patient: p }) => {
-      if (rowId == null || !p || !String(p.name || '').trim()) return;
-      rowIds.push(rowId);
-      if (inbox.seen.includes(rowId)) return;
-      inbox.seen.push(rowId);
-      if (known.has(dupKey(p))) { dupes++; return; }
+    const importInboxPatient = p => {
       let id = String(p.id || '').trim();
       if (!id || getP(id)) id = nextId();
       const meds = (Array.isArray(p.meds) ? p.meds : [])
@@ -1751,8 +1745,24 @@ async function syncInbox(manual = false) {
         insurance: String(p.insurance || ''), condition: String(p.condition || ''), hospital: String(p.hospital || ''),
         lastDate: p.lastDate, cycle: p.cycle, rxtype: p.rxtype, lastRev: p.lastRev, fullRev: p.fullRev,
         meds, notes: String(p.notes || ''), logs: [], refills: [] });
-      patients.push(rec); known.add(dupKey(rec)); added.push(rec);
-      (Array.isArray(p.docs) ? p.docs : []).forEach((d, i) => inbox.pending.push({ pid: id, rowId, i, name: d && d.name, type: d && d.type }));
+      patients.push(rec); added.push(rec);
+      return rec;
+    };
+    (Array.isArray(list) ? list : []).forEach(({ rowId, patient: p }) => {
+      if (rowId == null || !p || !String(p.name || '').trim()) return;
+      rowIds.push(rowId);
+      const firstTime = !inbox.seen.includes(rowId);
+      if (firstTime) inbox.seen.push(rowId);
+      // An incoming patient already on file (a double-tapped save, or a re-sent row) only contributes missing documents.
+      let rec = patients.find(x => dupKey(x) === dupKey(p));
+      if (rec) { if (firstTime) dupes++; }
+      else if (!firstTime) return; // imported before and since deleted in the app
+      else rec = importInboxPatient(p);
+      (Array.isArray(p.docs) ? p.docs : []).forEach((d, i) => {
+        if (!d || !d.fileId) return;
+        if ((files[rec.id] || []).some(f => f.src === d.fileId) || inbox.pending.some(j => j.pid === rec.id && j.fileId === d.fileId)) return;
+        inbox.pending.push({ pid: rec.id, rowId, i, name: d.name, type: d.type, fileId: d.fileId });
+      });
     });
     if (added.length) { persist(); render(); }
     inbox.seen = inbox.seen.slice(-500); persistInbox();
@@ -1762,7 +1772,10 @@ async function syncInbox(manual = false) {
     let docsAdded = 0;
     const retry = [];
     for (const job of inbox.pending.filter(j => getP(j.pid))) {
-      try { const f = await fetchInboxDoc(job); (files[job.pid] = files[job.pid] || []).push(f); docsAdded++; }
+      try {
+        const f = await fetchInboxDoc(job);
+        if (!(files[job.pid] || []).some(x => job.fileId && x.src === job.fileId)) { (files[job.pid] = files[job.pid] || []).push(f); docsAdded++; }
+      }
       catch { if ((job.tries = (job.tries || 0) + 1) < 5) retry.push(job); }
     }
     const docsFailed = retry.length;
