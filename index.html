@@ -1666,7 +1666,14 @@ const patientOf = r => normalise({ id: r.id, name: r.name, phone: r.phone, insur
   lastDate: r.last_date, cycle: r.cycle, rxtype: r.rxtype, lastRev: Number(r.last_rev), fullRev: Number(r.full_rev),
   meds: r.meds || [], notes: r.notes || '', logs: r.logs || [], refills: r.refills || [] });
 const rowKey = p => JSON.stringify(rowOf(p));
-function cacheLocally() { try { localStorage.setItem(CACHE, JSON.stringify({ patients, files: Object.fromEntries(Object.entries(files).map(([k, v]) => [k, v.filter(f => f.path)])) })); } catch { /* cache is optional */ } }
+// Documents still waiting to upload are cached too, so closing the tab does not lose them (falls back to cloud-only if too big).
+function cacheLocally() {
+  const only = keep => Object.fromEntries(Object.entries(files).map(([k, v]) => [k, v.filter(keep)]));
+  try { localStorage.setItem(CACHE, JSON.stringify({ patients, files: only(f => f.path || f.dataUrl) })); }
+  catch { try { localStorage.setItem(CACHE, JSON.stringify({ patients, files: only(f => f.path) })); } catch { /* cache is optional */ } }
+}
+// A request that never answers (e.g. a phone that froze the tab) must not block every later save.
+const withTimeout = (promise, ms = 15000) => Promise.race([promise, new Promise((_, fail) => setTimeout(() => fail(new Error('timeout')), ms))]);
 
 // Pushes every change since the last save (new, edited or deleted patients). Failures are retried.
 let pushing = null, pushAgain = false, pushWarned = false;
@@ -1674,30 +1681,34 @@ function persist() {
   cacheLocally();
   if (!cloud.ready) return;
   if (pushing) { pushAgain = true; return; }
+  // The "in progress" marker is cleared in .finally(), which always runs after this assignment — even when there is
+  // nothing to send and the work below finishes immediately (clearing it inside would be overwritten and stick).
   pushing = (async () => {
     const live = new Set(patients.map(p => p.id));
     const gone = Object.keys(synced).filter(id => !live.has(id));
     const changed = patients.filter(p => synced[p.id] !== rowKey(p));
     try {
-      if (gone.length) { const { error } = await sb.from('patients').delete().in('id', gone); if (error) throw error; gone.forEach(id => delete synced[id]); }
+      if (gone.length) { const { error } = await withTimeout(sb.from('patients').delete().in('id', gone)); if (error) throw error; gone.forEach(id => delete synced[id]); }
       for (const p of changed) {
         const row = rowOf(p), key = JSON.stringify(row);
-        const { error } = await sb.from('patients').upsert(row);
+        const { error } = await withTimeout(sb.from('patients').upsert(row));
         if (error) {
           if (error.code === '23505') { toast(`${p.name} is already on file with the same phone — not saved`, 'warn'); continue; }
           throw error;
         }
         synced[p.id] = key;
       }
+      if (pushWarned) toast('All changes saved to the cloud', 'ok');
       pushWarned = false;
+      flushDeletes();
     } catch (e) {
       if (!pushWarned) toast('Not saved to the cloud yet — will retry when online', 'warn');
       pushWarned = true; setTimeout(persist, 20000);
-    } finally {
-      pushing = null;
-      if (pushAgain) { pushAgain = false; persist(); }
     }
-  })();
+  })().finally(() => {
+    pushing = null;
+    if (pushAgain) { pushAgain = false; persist(); }
+  });
 }
 const persistFiles = persist; // documents are part of the patient row
 
@@ -1723,7 +1734,7 @@ async function uploadDoc(pid, f) {
   const type = blob.type || f.type;
   const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'application/pdf': 'pdf' }[type] || 'bin';
   const path = `${safeSeg(pid) || 'patient'}/${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}-${safeSeg(String(f.name).replace(/\.[^.]*$/, '')) || 'document'}.${ext}`;
-  const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: type, upsert: false });
+  const { error } = await withTimeout(sb.storage.from(BUCKET).upload(path, blob, { contentType: type, upsert: false }), 60000);
   if (error) throw error;
   return { name: type === 'image/jpeg' ? String(f.name).replace(/\.png$/i, '.jpg') : f.name, type, size: blob.size, path };
 }
@@ -1732,7 +1743,18 @@ async function docLinks(paths) {
   if (error) throw error;
   return Object.fromEntries((data || []).filter(d => d.signedUrl).map(d => [d.path, d.signedUrl]));
 }
-function deleteDocs(paths) { if (cloud.ready && paths.length) sb.storage.from(BUCKET).remove(paths).catch(() => {}); }
+// Removed documents are deleted from storage only after the patient change has been saved, and only if no patient
+// (on this device's latest copy) still points at the file. Telegram originals (tg/…) are kept as a backup.
+const pendingDeletes = new Set();
+function deleteDocs(paths) { paths.filter(p => p && !p.startsWith('tg/')).forEach(p => pendingDeletes.add(p)); } // run by flushDeletes after the next successful save
+function flushDeletes() {
+  if (!cloud.ready || !pendingDeletes.size || Object.keys(synced).length !== patients.length) return;
+  if (patients.some(p => synced[p.id] !== rowKey(p))) return; // unsaved changes: wait for the next successful save
+  const used = new Set(Object.values(files).flat().map(f => f.path).filter(Boolean));
+  const paths = [...pendingDeletes].filter(p => !used.has(p));
+  pendingDeletes.clear();
+  if (paths.length) withTimeout(sb.storage.from(BUCKET).remove(paths)).catch(() => paths.forEach(p => pendingDeletes.add(p)));
+}
 // Uploads documents still held on this device (one patient, or all). Stops at the first failure; retried later.
 let moving = false;
 async function moveDocsToCloud(only) {
@@ -1893,7 +1915,8 @@ async function boot() {
   const h0 = location.hash.replace('#', '').split('/');
   navigate(h0[0] === 'patients' ? 'patients:' + (h0[1] || 'all') : (VIEWS.includes(h0[0]) ? h0[0] : 'overview'), false);
   if (session) startCloud(session); else showAuth();
-  sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' && s) startCloud(s); if (ev === 'SIGNED_OUT') location.reload(); });
+  // Supabase calls must not run inside this callback (it holds the auth lock), hence the setTimeout.
+  sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' && s) setTimeout(() => startCloud(s), 0); if (ev === 'SIGNED_OUT') location.reload(); });
 }
 async function signOut() {
   await sb.auth.signOut();
@@ -1983,7 +2006,11 @@ let lastDay = todayISO(); setInterval(() => { if (todayISO() !== lastDay) { last
 hydrate();
 if (sb) boot(); else { navigate('overview', false); showAuth('Could not load the sign-in service — check the internet connection and reload.', false); $('authGo').hidden = $('authLink').hidden = true; }
 // Phones suspend background tabs: catch up when the app comes back to the front.
-document.addEventListener('visibilitychange', () => { if (!document.hidden && cloud.ready && Date.now() - cloud.lastFetch > 60000) refreshFromCloud(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden || !cloud.ready) return;
+  persist(); moveDocsToCloud();
+  if (Date.now() - cloud.lastFetch > 60000) refreshFromCloud();
+});
 window.addEventListener('online', () => { if (cloud.ready) { persist(); moveDocsToCloud(); } });
 </script>
 </body>
