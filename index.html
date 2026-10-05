@@ -1459,6 +1459,12 @@ function closeDetail() { $('drawer').classList.remove('open'); $('drawer').setAt
 function refreshDetail() { if (state.detailId && getP(state.detailId)) openDetail(state.detailId); else closeDetail(); }
 function viewFile(pid, i) {
   const f = (files[pid] || [])[i]; if (!f) return;
+  if (f.path) {
+    const w = window.open('', '_blank'); // opened now, inside the click, so it is not blocked as a pop-up
+    docLinks([f.path]).then(l => { if (!l[f.path]) throw 0; if (w) w.location.href = l[f.path]; else window.open(l[f.path], '_blank'); })
+      .catch(() => { if (w) w.close(); toast('Could not open the document — check the Telegram inbox settings', 'warn'); });
+    return;
+  }
   fetch(f.dataUrl).then(r => r.blob()).then(b => { const u = URL.createObjectURL(b); window.open(u, '_blank'); setTimeout(() => URL.revokeObjectURL(u), 60000); });
 }
 
@@ -1517,6 +1523,7 @@ function saveForm() {
   if (lastDate > todayISO()) { $('f_lastDate').classList.add('bad'); return toast('Last dispense date cannot be in the future', 'warn'); }
   if (num($('f_lastRev').value) < 0 || num($('f_fullRev').value) < 0) return toast('Values cannot be negative', 'warn');
   const old = state.editId ? getP(state.editId) : null;
+  const prevDocs = old ? files[old.id] || [] : [];
   const id = $('f_id').value.trim() || (old ? old.id : nextId());
   if (getP(id) && id !== old?.id) { $('f_id').classList.add('bad'); return toast(`Patient ID ${id} is already in use`, 'warn'); }
   const rec = normalise({ ...(old || { logs: [], refills: [] }), id, name, phone,
@@ -1526,15 +1533,18 @@ function saveForm() {
   if (old) { patients[patients.indexOf(old)] = rec; if (old.id !== id) delete files[old.id]; if (state.detailId === old.id) state.detailId = id; }
   else patients.push(rec);
   if (state.tempFiles.length) files[id] = state.tempFiles; else delete files[id];
+  const kept = new Set(state.tempFiles.map(f => f.path).filter(Boolean));
+  deleteDocs(prevDocs.map(f => f.path).filter(p => p && !kept.has(p)));
   persist(); persistFiles(); closeModal('pm');
+  moveDocsToCloud(id);
   toast(old ? 'Patient updated' : `${name} added`, 'ok'); render(); if (state.detailId) refreshDetail();
 }
 function handleFiles(list) {
-  [...list].forEach(file => {
-    if (file.size > 5 * 1024 * 1024) return toast(`${file.name} is larger than 5 MB`, 'warn');
-    const rd = new FileReader();
-    rd.onload = e => { state.tempFiles.push({ name: file.name, type: file.type, dataUrl: e.target.result }); renderTempFiles(); };
-    rd.readAsDataURL(file);
+  [...list].forEach(async file => {
+    const blob = /^image\//.test(file.type) ? await shrinkImage(file) : file;
+    if (blob.size > 5 * 1024 * 1024) return toast(`${file.name} is larger than 5 MB`, 'warn');
+    const name = blob.type === 'image/jpeg' ? file.name.replace(/\.png$/i, '.jpg') : file.name;
+    state.tempFiles.push({ name, type: blob.type || file.type, dataUrl: await blobToDataUrl(blob) }); renderTempFiles();
   });
   $('fileIn').value = '';
 }
@@ -1545,7 +1555,7 @@ function confirmDelete(id) {
   const p = getP(id); if (!p) return;
   $('cfT').textContent = `Delete ${p.name}?`;
   $('cfS').textContent = `Record ${p.id}, its call history, refills and documents will be removed. This cannot be undone.`;
-  confirmFn = () => { patients = patients.filter(x => x.id !== id); delete files[id]; persist(); persistFiles(); if (state.detailId === id) closeDetail(); toast('Patient deleted', 'ok'); render(); };
+  confirmFn = () => { deleteDocs((files[id] || []).map(f => f.path).filter(Boolean)); patients = patients.filter(x => x.id !== id); delete files[id]; persist(); persistFiles(); if (state.detailId === id) closeDetail(); toast('Patient deleted', 'ok'); render(); };
   openModal('cf');
 }
 function openCall(id) {
@@ -1642,6 +1652,51 @@ function setupInbox() {
   inbox.url = url.trim().replace(/\/+$/, ''); inbox.key = key.trim(); persistInbox();
   syncInbox(true);
 }
+// ── Cloud documents: files live in a private Supabase bucket; n8n hands out short-lived upload/view links.
+// A document is either { name, type, dataUrl } (still in this browser) or { name, type, size, path } (in the cloud).
+const cloudReady = () => !!(inbox.url && inbox.key);
+async function n8nJson(hook, body) {
+  const r = await fetch(`${inbox.url}/webhook/${hook}`, { method: 'POST', headers: { 'X-ChronicRx-Key': inbox.key, 'Content-Type': 'application/json' }, body: JSON.stringify(body), cache: 'no-store' });
+  if (!r.ok) throw new Error(`server replied ${r.status}`);
+  return r.json();
+}
+async function docLinks(paths) {
+  const { links } = await n8nJson('chronicrx-file-links', { paths });
+  return Object.fromEntries((Array.isArray(links) ? links : []).map(l => [l.path, l.url]));
+}
+function deleteDocs(paths) { if (cloudReady() && paths.length) n8nJson('chronicrx-file-delete', { paths }).catch(() => {}); }
+async function uploadDoc(pid, f) {
+  const blob = await fetch(f.dataUrl).then(r => r.blob());
+  const type = blob.type || f.type;
+  const { path, uploadUrl } = await n8nJson('chronicrx-upload-url', { pid, name: f.name, type });
+  if (!path || !uploadUrl) throw new Error('no upload link');
+  const fd = new FormData(); fd.append('cacheControl', '3600'); fd.append('', blob, f.name); // same request shape as supabase-js uploadToSignedUrl
+  const r = await fetch(uploadUrl, { method: 'PUT', headers: { 'x-upsert': 'false' }, body: fd });
+  if (!r.ok) throw new Error(`upload failed (${r.status})`);
+  return { name: f.name, type, size: blob.size, path };
+}
+// Moves documents still held in browser storage to the cloud (one patient, or all). Stops at the first failure.
+let moving = false;
+async function moveDocsToCloud(only) {
+  if (!cloudReady() || moving) return 0;
+  moving = true; let moved = 0;
+  try {
+    for (const pid of only ? [only] : Object.keys(files)) {
+      for (const f of [...(files[pid] || [])]) {
+        if (!f.dataUrl || f.path) continue;
+        const up = await uploadDoc(pid, f);
+        const cur = files[pid], j = cur ? cur.indexOf(f) : -1; // the patient may have been edited or deleted meanwhile
+        if (j < 0) { deleteDocs([up.path]); continue; }
+        cur[j] = up; moved++;
+      }
+    }
+  } catch { /* offline or storage not configured yet: retried on the next sync */ }
+  finally {
+    moving = false;
+    if (moved) { persistFiles(); if (state.detailId) refreshDetail(); }
+  }
+  return moved;
+}
 let syncing = false, lastSync = 0;
 const blobToDataUrl = b => new Promise((ok, fail) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = fail; r.readAsDataURL(b); });
 // Phone photos are large and browser storage is small: cap the long side at 1600px, re-encode as JPEG.
@@ -1721,6 +1776,9 @@ async function syncInbox(manual = false) {
     else if (docsFailed && manual) toast(`${plural(docsFailed, 'document')} could not be downloaded yet — will retry`, 'warn');
     else if (dupes) toast(`${plural(dupes, 'patient')} from Telegram already on file — skipped`, 'ok');
     else if (manual) toast('No new patients from Telegram', 'ok');
+    syncing = false;
+    const moved = await moveDocsToCloud();
+    if (moved && manual) toast(`${plural(moved, 'document')} moved to secure cloud storage`, 'ok');
   } catch (e) {
     if (manual) toast(`Telegram inbox: ${e.message || 'could not connect'}`, 'warn');
   } finally { syncing = false; }
