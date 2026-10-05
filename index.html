@@ -551,6 +551,7 @@
           <button data-act="restore" role="menuitem"><i data-ic="upload"></i><div>Restore from backup<div class="m-sub">Replaces the current data</div></div></button>
           <hr>
           <button data-act="cloudRefresh" role="menuitem"><i data-ic="repeat"></i><div>Refresh from cloud<div class="m-sub">Latest from every device and Telegram</div></div></button>
+          <button data-act="setPassword" role="menuitem"><i data-ic="edit"></i><div>Set password<div class="m-sub">Sign in without waiting for an email</div></div></button>
           <button data-act="signOut" role="menuitem"><i data-ic="x"></i><div>Sign out<div class="m-sub" id="whoami">Not signed in</div></div></button>
           <hr>
           <div class="credits">Created by <strong>Dr. Mohamed Baydon</strong><br>Area Supervisor <strong>Dr. Mahmoud Abdelgalil</strong></div>
@@ -891,11 +892,13 @@
     </div>
     <div class="m-body">
       <div class="field" style="margin-top:18px"><label for="authEmail">Email</label><input class="in" id="authEmail" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com"></div>
+      <div class="field" style="margin-top:14px"><label for="authPass">Password</label><input class="in" id="authPass" type="password" autocomplete="current-password" placeholder="Your ChronicRx password"></div>
       <div class="hint" id="authMsg" style="margin-top:10px"></div>
     </div>
     <div class="m-foot">
       <button class="btn" id="authOut" hidden>Sign out</button>
-      <button class="btn btn-brand" id="authGo"><i data-ic="send"></i>Email me a sign-in link</button>
+      <button class="btn" id="authLink"><i data-ic="send"></i>Email me a link instead</button>
+      <button class="btn btn-brand" id="authGo"><i data-ic="check"></i>Sign in</button>
     </div>
   </div>
 </div>
@@ -1825,17 +1828,44 @@ async function uploadThisDevice() {
 // ── Sign-in (email link) and start-up
 const cloud = { ready: false, lastFetch: 0, email: '' };
 function showAuth(msg, signedInAs) {
-  $('authMsg').innerHTML = msg || "We'll email you a sign-in link — no password needed.";
-  $('authOut').hidden = !signedInAs; $('authGo').hidden = !!signedInAs; $('authEmail').closest('.field').hidden = !!signedInAs;
+  $('authMsg').innerHTML = msg || 'First time on ChronicRx? Use <b>Email me a link instead</b>, then choose a password from the Data menu.';
+  $('authOut').hidden = !signedInAs;
+  ['authGo', 'authLink'].forEach(k => $(k).hidden = !!signedInAs);
+  ['authEmail', 'authPass'].forEach(k => $(k).closest('.field').hidden = !!signedInAs);
   openModal('auth'); if (!signedInAs) setTimeout(() => $('authEmail').focus(), 60);
 }
-async function sendLink() {
+function authEmail() {
   const email = $('authEmail').value.trim().toLowerCase();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { $('authEmail').classList.add('bad'); return; }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { $('authEmail').classList.add('bad'); $('authEmail').focus(); return null; }
+  return email;
+}
+async function signInWithPassword() {
+  const email = authEmail(); if (!email) return;
+  const password = $('authPass').value;
+  if (!password) { $('authPass').classList.add('bad'); return $('authPass').focus(); }
   $('authGo').disabled = true;
-  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
+  const { error } = await sb.auth.signInWithPassword({ email, password });
   $('authGo').disabled = false;
-  $('authMsg').innerHTML = error ? `Could not send the link: ${esc(error.message)}` : `Check <b>${esc(email)}</b> and open the link on this device.`;
+  if (error) $('authMsg').innerHTML = /invalid/i.test(error.message)
+    ? 'Wrong email or password. No password yet? Use <b>Email me a link instead</b> once, then set one from the Data menu.'
+    : `Could not sign in: ${esc(error.message)}`;
+}
+async function sendLink() {
+  const email = authEmail(); if (!email) return;
+  $('authLink').disabled = true;
+  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
+  $('authLink').disabled = false;
+  $('authMsg').innerHTML = !error ? `Check <b>${esc(email)}</b> and open the link on this device.`
+    : /rate limit/i.test(error.message) ? 'Too many sign-in emails were sent in the last hour (the email service allows only a few). Sign in with your password, or try the link again later.'
+    : `Could not send the link: ${esc(error.message)}`;
+}
+async function setPassword() {
+  const pw = prompt('Choose a password for ChronicRx (at least 8 characters).\nYou will use it with your email on every device.');
+  if (pw === null) return;
+  if (pw.length < 8) return toast('The password needs at least 8 characters', 'warn');
+  if (prompt('Type the same password again to confirm') !== pw) return toast('The passwords did not match — nothing changed', 'warn');
+  const { error } = await sb.auth.updateUser({ password: pw, data: { has_password: true } });
+  toast(error ? `Could not set the password: ${error.message}` : 'Password saved — sign in with it on any device', error ? 'warn' : 'ok');
 }
 async function startCloud(session) {
   if (cloud.ready) return;
@@ -1843,6 +1873,7 @@ async function startCloud(session) {
   const { data: ok } = await sb.rpc('is_staff');
   if (!ok) return showAuth(`<b>${esc(cloud.email)}</b> is not approved for ChronicRx. Ask the administrator to add it.`, true);
   closeModal('auth'); $('whoami').textContent = cloud.email;
+  if (!(session.user.user_metadata || {}).has_password) setTimeout(() => toast('Tip: Data menu → Set password, so you never wait for a sign-in email', 'ok'), 3500);
   if (!(await refreshFromCloud())) { cloud.ready = true; return; } // offline: work from the cached copy; saves retry
   cloud.ready = true;
   await uploadThisDevice();
@@ -1886,7 +1917,7 @@ document.addEventListener('click', e => {
   if (!el) return;
   const d = el.dataset;
   if (d.nav) { e.preventDefault(); closeDetail(); return navigate(d.nav); }
-  if (d.act) { toggleMenu(false); return ({ add: () => openForm(), export: exportCSV, backup, restore: () => $('restoreIn').click(), cloudRefresh: () => refreshFromCloud(true), signOut })[d.act](); }
+  if (d.act) { toggleMenu(false); return ({ add: () => openForm(), export: exportCSV, backup, restore: () => $('restoreIn').click(), cloudRefresh: () => refreshFromCloud(true), setPassword, signOut })[d.act](); }
   if (d.call) return openCall(d.call);
   if (d.refill) return openRefill(d.refill);
   if (d.edit) return openForm(d.edit);
@@ -1901,8 +1932,10 @@ document.addEventListener('click', e => {
 });
 $('menuBtn').onclick = e => { e.stopPropagation(); toggleMenu(); };
 document.querySelectorAll('.overlay').forEach(o => o.addEventListener('mousedown', e => { if (e.target === o && o.id !== 'auth') closeModal(o.id); }));
-$('authGo').onclick = sendLink;
-$('authEmail').addEventListener('keydown', e => { $('authEmail').classList.remove('bad'); if (e.key === 'Enter') sendLink(); });
+$('authGo').onclick = signInWithPassword;
+$('authLink').onclick = sendLink;
+$('authEmail').addEventListener('keydown', e => { $('authEmail').classList.remove('bad'); if (e.key === 'Enter') $('authPass').focus(); });
+$('authPass').addEventListener('keydown', e => { $('authPass').classList.remove('bad'); if (e.key === 'Enter') signInWithPassword(); });
 $('authOut').onclick = signOut;
 $('scrim').onclick = closeDetail;
 document.addEventListener('keydown', e => {
@@ -1948,7 +1981,7 @@ let lastDay = todayISO(); setInterval(() => { if (todayISO() !== lastDay) { last
 
 // ═════════ INIT ═════════
 hydrate();
-if (sb) boot(); else { navigate('overview', false); showAuth('Could not load the sign-in service — check the internet connection and reload.', false); $('authGo').hidden = true; }
+if (sb) boot(); else { navigate('overview', false); showAuth('Could not load the sign-in service — check the internet connection and reload.', false); $('authGo').hidden = $('authLink').hidden = true; }
 // Phones suspend background tabs: catch up when the app comes back to the front.
 document.addEventListener('visibilitychange', () => { if (!document.hidden && cloud.ready && Date.now() - cloud.lastFetch > 60000) refreshFromCloud(); });
 window.addEventListener('online', () => { if (cloud.ready) { persist(); moveDocsToCloud(); } });
