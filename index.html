@@ -549,6 +549,9 @@
           <button data-act="backup" role="menuitem"><i data-ic="save"></i><div>Download backup<div class="m-sub">All data including documents</div></div></button>
           <button data-act="restore" role="menuitem"><i data-ic="upload"></i><div>Restore from backup<div class="m-sub">Replaces the current data</div></div></button>
           <hr>
+          <button data-act="inboxSync" role="menuitem"><i data-ic="send"></i><div>Sync Telegram inbox<div class="m-sub">Import patients added via the Telegram bot</div></div></button>
+          <button data-act="inboxSetup" role="menuitem"><i data-ic="database"></i><div>Telegram inbox settings<div class="m-sub">n8n address and app key</div></div></button>
+          <hr>
           <div class="credits">Created by <strong>Dr. Mohamed Baydon</strong><br>Area Supervisor <strong>Dr. Mahmoud Abdelgalil</strong></div>
         </div>
       </div>
@@ -918,6 +921,7 @@ const ICONS = {
   repeat: '<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
   percent: '<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
   sigma: '<path d="M18 7V4H6l6 8-6 8h12v-3"/>',
+  send: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
 };
 const ic = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ''}</svg>`;
 function hydrate(root = document) {
@@ -1623,6 +1627,57 @@ function restore(file) {
   rd.readAsText(file); $('restoreIn').value = '';
 }
 
+// ═════════ TELEGRAM INBOX (patients added via the n8n Telegram bot) ═════════
+const IKEY = 'chronicrx_inbox';
+let inbox = load(IKEY, {}); if (!inbox || typeof inbox !== 'object' || Array.isArray(inbox)) inbox = {};
+if (!Array.isArray(inbox.seen)) inbox.seen = [];
+function persistInbox() { try { localStorage.setItem(IKEY, JSON.stringify(inbox)); } catch { /* settings kept for this session only */ } }
+function setupInbox() {
+  const url = prompt('n8n address, e.g. https://n8n.example.com\nLeave empty to disconnect.', inbox.url || '');
+  if (url === null) return;
+  if (!url.trim()) { delete inbox.url; delete inbox.key; persistInbox(); return toast('Telegram inbox disconnected', 'ok'); }
+  const key = prompt('App key — the value of the "ChronicRx App Key" credential in n8n', inbox.key || '');
+  if (key === null || !key.trim()) return;
+  inbox.url = url.trim().replace(/\/+$/, ''); inbox.key = key.trim(); persistInbox();
+  syncInbox(true);
+}
+let syncing = false, lastSync = 0;
+async function syncInbox(manual = false) {
+  if (!inbox.url || !inbox.key) { if (manual) setupInbox(); return; }
+  if (syncing) return;
+  syncing = true; lastSync = Date.now();
+  const hdr = { 'X-ChronicRx-Key': inbox.key };
+  try {
+    const r = await fetch(inbox.url + '/webhook/chronicrx-inbox', { headers: hdr, cache: 'no-store' });
+    if (!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'app key was rejected' : `server replied ${r.status}`);
+    const list = (await r.json()).patients;
+    const rowIds = [], added = [];
+    (Array.isArray(list) ? list : []).forEach(({ rowId, patient: p }) => {
+      if (rowId == null || !p || !String(p.name || '').trim()) return;
+      rowIds.push(rowId);
+      if (inbox.seen.includes(rowId)) return;
+      let id = String(p.id || '').trim();
+      if (!id || getP(id)) id = nextId();
+      const meds = (Array.isArray(p.meds) ? p.meds : [])
+        .map(m => ({ name: String(m.name || '').trim(), qty: String(m.qty || '').trim(), src: ['us', 'hospital', 'partial'].includes(m.src) ? m.src : 'us' }))
+        .filter(m => m.name);
+      const rec = normalise({ id, name: String(p.name).trim(), phone: p.phone,
+        insurance: String(p.insurance || ''), condition: String(p.condition || ''), hospital: String(p.hospital || ''),
+        lastDate: p.lastDate, cycle: p.cycle, rxtype: p.rxtype, lastRev: p.lastRev, fullRev: p.fullRev,
+        meds, notes: String(p.notes || ''), logs: [], refills: [] });
+      patients.push(rec); inbox.seen.push(rowId); added.push(rec);
+    });
+    if (added.length) {
+      persist(); render(); if (state.detailId) refreshDetail();
+      toast(added.length === 1 ? `${added[0].name} added from Telegram` : `${plural(added.length, 'patient')} added from Telegram`, 'ok');
+    } else if (manual) toast('No new patients from Telegram', 'ok');
+    inbox.seen = inbox.seen.slice(-500); persistInbox();
+    if (rowIds.length) fetch(inbox.url + '/webhook/chronicrx-inbox-ack', { method: 'POST', headers: { ...hdr, 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIds }) }).catch(() => {});
+  } catch (e) {
+    if (manual) toast(`Telegram inbox: ${e.message || 'could not connect'}`, 'warn');
+  } finally { syncing = false; }
+}
+
 // ═════════ TOAST ═════════
 let tT;
 function toast(msg, kind = 'ok') {
@@ -1639,7 +1694,7 @@ document.addEventListener('click', e => {
   if (!el) return;
   const d = el.dataset;
   if (d.nav) { e.preventDefault(); closeDetail(); return navigate(d.nav); }
-  if (d.act) { toggleMenu(false); return ({ add: () => openForm(), export: exportCSV, backup, restore: () => $('restoreIn').click() })[d.act](); }
+  if (d.act) { toggleMenu(false); return ({ add: () => openForm(), export: exportCSV, backup, restore: () => $('restoreIn').click(), inboxSync: () => syncInbox(true), inboxSetup: setupInbox })[d.act](); }
   if (d.call) return openCall(d.call);
   if (d.refill) return openRefill(d.refill);
   if (d.edit) return openForm(d.edit);
@@ -1699,6 +1754,8 @@ let lastDay = todayISO(); setInterval(() => { if (todayISO() !== lastDay) { last
 hydrate();
 const h0 = location.hash.replace('#', '').split('/');
 navigate(h0[0] === 'patients' ? 'patients:' + (h0[1] || 'all') : (h0[0] || 'overview'), false);
+syncInbox();
+document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - lastSync > 60000) syncInbox(); });
 </script>
 </body>
 </html>
