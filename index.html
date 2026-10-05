@@ -1652,10 +1652,15 @@ async function syncInbox(manual = false) {
     if (!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'app key was rejected' : `server replied ${r.status}`);
     const list = (await r.json()).patients;
     const rowIds = [], added = [];
+    let dupes = 0;
+    const dupKey = p => `${String(p.name || '').trim().toLowerCase().replace(/\s+/g, ' ')}|${String(p.phone || '').replace(/\D/g, '')}`;
+    const known = new Set(patients.map(dupKey));
     (Array.isArray(list) ? list : []).forEach(({ rowId, patient: p }) => {
       if (rowId == null || !p || !String(p.name || '').trim()) return;
       rowIds.push(rowId);
       if (inbox.seen.includes(rowId)) return;
+      inbox.seen.push(rowId);
+      if (known.has(dupKey(p))) { dupes++; return; }
       let id = String(p.id || '').trim();
       if (!id || getP(id)) id = nextId();
       const meds = (Array.isArray(p.meds) ? p.meds : [])
@@ -1665,12 +1670,13 @@ async function syncInbox(manual = false) {
         insurance: String(p.insurance || ''), condition: String(p.condition || ''), hospital: String(p.hospital || ''),
         lastDate: p.lastDate, cycle: p.cycle, rxtype: p.rxtype, lastRev: p.lastRev, fullRev: p.fullRev,
         meds, notes: String(p.notes || ''), logs: [], refills: [] });
-      patients.push(rec); inbox.seen.push(rowId); added.push(rec);
+      patients.push(rec); known.add(dupKey(rec)); added.push(rec);
     });
     if (added.length) {
       persist(); render(); if (state.detailId) refreshDetail();
       toast(added.length === 1 ? `${added[0].name} added from Telegram` : `${plural(added.length, 'patient')} added from Telegram`, 'ok');
-    } else if (manual) toast('No new patients from Telegram', 'ok');
+    } else if (dupes) toast(`${plural(dupes, 'patient')} from Telegram already on file — skipped`, 'ok');
+    else if (manual) toast('No new patients from Telegram', 'ok');
     inbox.seen = inbox.seen.slice(-500); persistInbox();
     if (rowIds.length) fetch(inbox.url + '/webhook/chronicrx-inbox-ack', { method: 'POST', headers: { ...hdr, 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIds }) }).catch(() => {});
   } catch (e) {
