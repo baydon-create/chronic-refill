@@ -1631,6 +1631,7 @@ function restore(file) {
 const IKEY = 'chronicrx_inbox';
 let inbox = load(IKEY, {}); if (!inbox || typeof inbox !== 'object' || Array.isArray(inbox)) inbox = {};
 if (!Array.isArray(inbox.seen)) inbox.seen = [];
+if (!Array.isArray(inbox.pending)) inbox.pending = [];
 function persistInbox() { try { localStorage.setItem(IKEY, JSON.stringify(inbox)); } catch { /* settings kept for this session only */ } }
 function setupInbox() {
   const url = prompt('n8n address, e.g. https://n8n.example.com\nLeave empty to disconnect.', inbox.url || '');
@@ -1642,6 +1643,31 @@ function setupInbox() {
   syncInbox(true);
 }
 let syncing = false, lastSync = 0;
+const blobToDataUrl = b => new Promise((ok, fail) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = fail; r.readAsDataURL(b); });
+// Phone photos are large and browser storage is small: cap the long side at 1600px, re-encode as JPEG.
+async function shrinkImage(blob) {
+  try {
+    const bmp = await createImageBitmap(blob);
+    const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+    if (k === 1 && blob.size <= 400 * 1024) return blob;
+    const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    const out = await new Promise(ok => c.toBlob(ok, 'image/jpeg', 0.8));
+    return out && out.size < blob.size ? out : blob;
+  } catch { return blob; }
+}
+// Downloads one attachment of an inbox row through n8n (which fetches it from Telegram on demand).
+async function fetchInboxDoc({ rowId, i, name, type }) {
+  const r = await fetch(`${inbox.url}/webhook/chronicrx-file?rowId=${encodeURIComponent(rowId)}&i=${i}`, { headers: { 'X-ChronicRx-Key': inbox.key }, cache: 'no-store' });
+  if (!r.ok) throw new Error(`server replied ${r.status}`);
+  let b = await r.blob();
+  if (!b.type && type) b = new Blob([b], { type });
+  if (/^image\//.test(b.type)) b = await shrinkImage(b);
+  if (b.size > 5 * 1024 * 1024) throw new Error('larger than 5 MB');
+  let fn = String(name || `document-${i + 1}`);
+  if (b.type === 'image/jpeg' && /\.png$/i.test(fn)) fn = fn.replace(/\.png$/i, '.jpg');
+  return { name: fn, type: b.type, dataUrl: await blobToDataUrl(b) };
+}
 async function syncInbox(manual = false) {
   if (!inbox.url || !inbox.key) { if (manual) setupInbox(); return; }
   if (syncing) return;
@@ -1671,14 +1697,30 @@ async function syncInbox(manual = false) {
         lastDate: p.lastDate, cycle: p.cycle, rxtype: p.rxtype, lastRev: p.lastRev, fullRev: p.fullRev,
         meds, notes: String(p.notes || ''), logs: [], refills: [] });
       patients.push(rec); known.add(dupKey(rec)); added.push(rec);
+      (Array.isArray(p.docs) ? p.docs : []).forEach((d, i) => inbox.pending.push({ pid: id, rowId, i, name: d && d.name, type: d && d.type }));
     });
-    if (added.length) {
-      persist(); render(); if (state.detailId) refreshDetail();
-      toast(added.length === 1 ? `${added[0].name} added from Telegram` : `${plural(added.length, 'patient')} added from Telegram`, 'ok');
-    } else if (dupes) toast(`${plural(dupes, 'patient')} from Telegram already on file — skipped`, 'ok');
-    else if (manual) toast('No new patients from Telegram', 'ok');
+    if (added.length) { persist(); render(); }
     inbox.seen = inbox.seen.slice(-500); persistInbox();
     if (rowIds.length) fetch(inbox.url + '/webhook/chronicrx-inbox-ack', { method: 'POST', headers: { ...hdr, 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIds }) }).catch(() => {});
+
+    // Attachments: new ones plus any that failed on an earlier sync. Patients deleted since are dropped.
+    let docsAdded = 0;
+    const retry = [];
+    for (const job of inbox.pending.filter(j => getP(j.pid))) {
+      try { const f = await fetchInboxDoc(job); (files[job.pid] = files[job.pid] || []).push(f); docsAdded++; }
+      catch { if ((job.tries = (job.tries || 0) + 1) < 5) retry.push(job); }
+    }
+    const docsFailed = retry.length;
+    inbox.pending = retry; persistInbox();
+    if (docsAdded) { persistFiles(); render(); }
+    if (state.detailId && (added.length || docsAdded)) refreshDetail();
+
+    const docMsg = (docsAdded ? ` with ${plural(docsAdded, 'document')}` : '') + (docsFailed ? ` · ${plural(docsFailed, 'document')} will retry` : '');
+    if (added.length) toast((added.length === 1 ? `${added[0].name} added from Telegram` : `${plural(added.length, 'patient')} added from Telegram`) + docMsg, docsFailed ? 'warn' : 'ok');
+    else if (docsAdded) toast(`${plural(docsAdded, 'document')} added from Telegram` + (docsFailed ? ` · ${plural(docsFailed, 'document')} will retry` : ''), docsFailed ? 'warn' : 'ok');
+    else if (docsFailed && manual) toast(`${plural(docsFailed, 'document')} could not be downloaded yet — will retry`, 'warn');
+    else if (dupes) toast(`${plural(dupes, 'patient')} from Telegram already on file — skipped`, 'ok');
+    else if (manual) toast('No new patients from Telegram', 'ok');
   } catch (e) {
     if (manual) toast(`Telegram inbox: ${e.message || 'could not connect'}`, 'warn');
   } finally { syncing = false; }
