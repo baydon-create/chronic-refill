@@ -1616,14 +1616,16 @@ function refillHint() {
 // After a refill is corrected or deleted, the patient's last dispense follows the latest refill on record
 // (or, with none left, the values saved just before the first one was recorded).
 function syncFromRefills(p, old) {
-  const wasCurrent = old.date === p.lastDate && num(old.amount) === num(p.lastRev);
+  const wasCurrent = old.date === p.lastDate;
   p.refills.sort((a, b) => String(b.date).localeCompare(String(a.date)));
   const latest = p.refills[0];
-  if (!wasCurrent && !(latest && latest.date > p.lastDate)) return;
+  if (!wasCurrent && !(latest && latest.date > p.lastDate)) return true;
+  if (!latest && !old.prev) return false; // recorded before earlier values were kept: the user must re-enter them
   if (old.prev) p.fullRev = num(old.prev.fullRev);
   if (latest) { p.lastDate = latest.date; p.lastRev = num(latest.amount); p.rxtype = latest.rxtype || p.rxtype; }
   else if (old.prev) { p.lastDate = old.prev.lastDate; p.lastRev = num(old.prev.lastRev); p.rxtype = old.prev.rxtype; }
   if (latest && latest.rxtype === 'full' && num(latest.amount) > p.fullRev) p.fullRev = num(latest.amount);
+  return true;
 }
 function saveRefill() {
   const p = getP(state.refillId); if (!p) return;
@@ -1649,9 +1651,10 @@ function deleteRefill() {
   const old = p.refills[idx];
   if (!confirm(`Delete the refill dispensed on ${fmtDate(old.date)} (${sar(old.amount, 2)})?`)) return;
   p.refills.splice(idx, 1);
-  syncFromRefills(p, old);
-  normalise(p); persist(); closeModal('rm');
-  toast(`Refill deleted · next due ${fmtDate(dueDate(p))}`, 'ok'); render(); refreshDetail();
+  const restored = syncFromRefills(p, old);
+  normalise(p); persist(); closeModal('rm'); render(); refreshDetail();
+  if (restored) return toast(`Refill deleted · next due ${fmtDate(dueDate(p))}`, 'ok');
+  toast('Refill deleted · enter the correct last dispense date and values', 'warn'); openForm(p.id);
 }
 
 // ═════════ DATA ═════════
