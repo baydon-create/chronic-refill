@@ -354,6 +354,8 @@
   .tl .dot svg.ic { width: 14px; height: 14px; }
   .tl-h { font-size: 14px; font-weight: 600; }
   .tl-h span { color: var(--text-3); font-weight: 400; }
+  .tl-h .ib.sm { float: right; width: 28px; height: 28px; margin: -4px -6px 0 8px; }
+  .tl-h .ib.sm svg { width: 15px; height: 15px; }
   .tl-b { font-size: 13.5px; color: var(--text-2); margin-top: 2px; }
   .file { display: flex; align-items: center; gap: 10px; padding: 9px 10px 9px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 13.5px; background: #fff; }
   .file + .file { margin-top: 8px; }
@@ -781,7 +783,7 @@
       <div class="fg three">
         <div class="field"><label for="f_lastDate">Last dispense <span class="req">*</span></label><input class="in" id="f_lastDate" type="date"></div>
         <div class="field"><label for="f_cycle">Refill cycle</label>
-          <select class="sel" id="f_cycle"><option value="30">30 days</option><option value="60">60 days</option><option value="90">90 days</option><option value="180">180 days</option></select></div>
+          <select class="sel" id="f_cycle"><option value="27">27 days</option><option value="56">56 days</option><option value="84">84 days</option><option value="180">180 days</option></select></div>
         <div class="field"><label for="f_rxtype">Dispense type</label>
           <select class="sel" id="f_rxtype"><option value="full">Full Rx — by us</option><option value="partial">Partial Rx — part by us</option><option value="none">Hospital Rx copy held</option></select></div>
       </div>
@@ -848,7 +850,7 @@
   <div class="modal md" role="dialog" aria-modal="true" aria-label="Record refill">
     <div class="m-head">
       <span class="chip-ic x-green"><i data-ic="package"></i></span>
-      <div><div class="m-t">Record refill</div><div class="m-s" id="rmS"></div></div>
+      <div><div class="m-t" id="rmT">Record refill</div><div class="m-s" id="rmS"></div></div>
       <button class="ib" data-close aria-label="Close"><i data-ic="x"></i></button>
     </div>
     <div class="m-body">
@@ -861,8 +863,9 @@
       <div class="hint" id="rmHint" style="margin-top:12px"></div>
     </div>
     <div class="m-foot">
+      <button class="btn btn-ghost-danger" id="rmDel" hidden style="margin-right:auto"><i data-ic="trash"></i>Delete</button>
       <button class="btn" data-close>Cancel</button>
-      <button class="btn btn-brand" id="rmSave"><i data-ic="check"></i>Record refill</button>
+      <button class="btn btn-brand" id="rmSave"><i data-ic="check"></i><span id="rmSaveT">Record refill</span></button>
     </div>
   </div>
 </div>
@@ -1001,7 +1004,7 @@ function revenue(p) {
 }
 function normalise(p) {
   p.id = String(p.id); p.name = String(p.name || ''); p.phone = String(p.phone || '');
-  p.cycle = parseInt(p.cycle) > 0 ? parseInt(p.cycle) : 90;
+  p.cycle = parseInt(p.cycle) > 0 ? parseInt(p.cycle) : 84;
   p.lastRev = num(p.lastRev); p.fullRev = num(p.fullRev);
   p.rxtype = ['full', 'partial', 'none'].includes(p.rxtype) ? p.rxtype : 'full';
   p.lastDate = parseISO(p.lastDate) ? String(p.lastDate).slice(0, 10) : todayISO();
@@ -1193,8 +1196,8 @@ function renderOverview() {
 
   const n = patients.length || 1;
   const byT = ['full', 'partial', 'none'].map(t => [rxName(t), patients.filter(p => p.rxtype === t).length]);
-  const byC = [30, 60, 90, 180].map(cy => [`${cy}-day cycle`, patients.filter(p => p.cycle === cy).length]).filter(x => x[1]);
-  const other = patients.filter(p => ![30, 60, 90, 180].includes(p.cycle)).length;
+  const byC = [27, 56, 84, 180].map(cy => [`${cy}-day cycle`, patients.filter(p => p.cycle === cy).length]).filter(x => x[1]);
+  const other = patients.filter(p => ![27, 56, 84, 180].includes(p.cycle)).length;
   if (other) byC.push(['Other cycles', other]);
   const row = ([l, v]) => `<div class="mix-row"><span>${l}</span><div class="track"><span style="width:${v / n * 100}%"></span></div><div class="n">${v}<span>${Math.round(v / n * 100)}%</span></div></div>`;
   $('ovMix').innerHTML = patients.length ? `<div class="lbl-sm">Dispense type</div>${byT.map(row).join('')}<div class="lbl-sm" style="margin-top:14px">Refill cycle</div>${byC.map(row).join('')}` : '<div class="muted sm">No patients yet</div>';
@@ -1440,9 +1443,9 @@ function openDetail(id) {
   const meds = p.meds.length ? p.meds.map(m => `<div class="med"><span class="chip-ic ${m.src === 'us' ? 'x-brand' : m.src === 'hospital' ? 'x-green' : 'x-amber'}">${ic('pill')}</span><div style="min-width:0"><div class="med-n">${esc(m.name)}</div><div class="med-q">${esc(m.qty) || '—'}</div></div><span class="med-s src-${esc(m.src)}">${src[m.src] || ''}</span></div>`).join('') : '<div class="muted sm">No medicines recorded</div>';
   const docs = files[p.id] || [];
   const docHTML = docs.length ? docs.map((f, i) => `<div class="file link" data-view="${i}">${ic(f.type && f.type.includes('pdf') ? 'file' : 'image')}<span class="file-n">${esc(f.name)}</span>${ic('arrowRight')}</div>`).join('') : '<div class="muted sm">No documents uploaded</div>';
-  const ev = [...p.logs.map(l => ({ date: l.date, l })), ...p.refills.map(f => ({ date: f.date, f }))].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const ev = [...p.logs.map(l => ({ date: l.date, l })), ...p.refills.map((f, i) => ({ date: f.date, f, i }))].sort((a, b) => String(b.date).localeCompare(String(a.date)));
   const tl = ev.length ? ev.map(e => {
-    if (e.f) return `<div class="tl"><span class="dot x-brand">${ic('package')}</span><div class="tl-h">Refill dispensed <span>· ${fmtDate(e.date)}</span></div><div class="tl-b">${sar(e.f.amount, 2)} · ${rxName(e.f.rxtype)}</div></div>`;
+    if (e.f) return `<div class="tl"><span class="dot x-brand">${ic('package')}</span><div class="tl-h">Refill dispensed <span>· ${fmtDate(e.date)}</span><button class="ib sm" data-rf="${e.i}" title="Edit refill" aria-label="Edit refill">${ic('edit')}</button></div><div class="tl-b">${sar(e.f.amount, 2)} · ${rxName(e.f.rxtype)}</div></div>`;
     const m = outcomeMeta(e.l.outcome);
     return `<div class="tl"><span class="dot ${m.x}">${ic(m.icon)}</span><div class="tl-h">${m.label} <span>· ${fmtDate(e.date)}</span></div>${e.l.note ? `<div class="tl-b">${esc(e.l.note)}</div>` : ''}${e.l.next ? `<div class="tl-b muted">Follow-up ${fmtDate(e.l.next)}</div>` : ''}</div>`;
   }).join('') : '<div class="muted sm">No calls or refills recorded yet</div>';
@@ -1492,7 +1495,7 @@ function openForm(id = null) {
   set('f_name', p?.name); set('f_id', p?.id); set('f_phone', p?.phone); set('f_insurance', p?.insurance);
   set('f_condition', p?.condition); set('f_hospital', p?.hospital); set('f_notes', p?.notes);
   set('f_lastDate', p ? p.lastDate : todayISO());
-  const cyc = String(p ? p.cycle : 90);
+  const cyc = String(p ? p.cycle : 84);
   if (![...$('f_cycle').options].some(o => o.value === cyc)) $('f_cycle').add(new Option(`${cyc} days`, cyc));
   set('f_cycle', cyc); set('f_rxtype', p ? p.rxtype : 'full');
   set('f_lastRev', p && p.lastRev ? p.lastRev : ''); set('f_fullRev', p && p.fullRev ? p.fullRev : '');
@@ -1520,7 +1523,7 @@ function calcForm() {
   $('c_upF').textContent = dr.rxtype === 'full' ? 'Not applicable to Full Rx' : r.full > r.last ? `${fmtN(r.full, 2)} − ${fmtN(r.last, 2)}` : 'Full value must exceed last';
   $('c_estF').textContent = `${fmtN(r.base, 2)} + ${fmtN(r.upsell, 2)}`;
   const ld = $('f_lastDate').value;
-  if (parseISO(ld)) { const due = addDays(ld, parseInt($('f_cycle').value) || 90); $('f_due').innerHTML = `Next refill due <b>${fmtDate(due)}</b> · ${relDays(diffDays(todayISO(), due)).toLowerCase()}`; }
+  if (parseISO(ld)) { const due = addDays(ld, parseInt($('f_cycle').value) || 84); $('f_due').innerHTML = `Next refill due <b>${fmtDate(due)}</b> · ${relDays(diffDays(todayISO(), due)).toLowerCase()}`; }
   else $('f_due').textContent = '';
 }
 function nextId() {
@@ -1595,11 +1598,14 @@ function saveCall() {
   persist(); closeModal('cm');
   toast(state.outcome === 'won' ? `${p.name} confirmed coming` : 'Call logged', 'ok'); render(); refreshDetail();
 }
-function openRefill(id) {
+function openRefill(id, idx) {
   const p = getP(id); if (!p) return;
-  state.refillId = id; const r = revenue(p);
-  $('rmS').textContent = `${p.name} · due ${fmtDate(dueDate(p))}`;
-  $('rmDate').value = todayISO(); $('rmAmt').value = r.est ? r.est.toFixed(2) : ''; $('rmType').value = r.upsell ? 'full' : p.rxtype;
+  const f = idx == null ? null : p.refills[idx]; if (idx != null && !f) return;
+  state.refillId = id; state.refillIdx = f ? idx : null; const r = revenue(p);
+  $('rmT').textContent = f ? 'Edit refill' : 'Record refill'; $('rmSaveT').textContent = f ? 'Save changes' : 'Record refill'; $('rmDel').hidden = !f;
+  $('rmS').textContent = f ? `${p.name} · dispensed ${fmtDate(f.date)}` : `${p.name} · due ${fmtDate(dueDate(p))}`;
+  if (f) { $('rmDate').value = f.date; $('rmAmt').value = num(f.amount).toFixed(2); $('rmType').value = f.rxtype || p.rxtype; }
+  else { $('rmDate').value = todayISO(); $('rmAmt').value = r.est ? r.est.toFixed(2) : ''; $('rmType').value = r.upsell ? 'full' : p.rxtype; }
   refillHint(); openModal('rm');
 }
 function refillHint() {
@@ -1607,17 +1613,45 @@ function refillHint() {
   const d = parseISO($('rmDate').value) ? $('rmDate').value : todayISO();
   $('rmHint').innerHTML = `Next refill will be due <b>${fmtDate(addDays(d, p.cycle))}</b> (${p.cycle}-day cycle). The amount becomes the new last-dispensed value.`;
 }
+// After a refill is corrected or deleted, the patient's last dispense follows the latest refill on record
+// (or, with none left, the values saved just before the first one was recorded).
+function syncFromRefills(p, old) {
+  const wasCurrent = old.date === p.lastDate && num(old.amount) === num(p.lastRev);
+  p.refills.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const latest = p.refills[0];
+  if (!wasCurrent && !(latest && latest.date > p.lastDate)) return;
+  if (old.prev) p.fullRev = num(old.prev.fullRev);
+  if (latest) { p.lastDate = latest.date; p.lastRev = num(latest.amount); p.rxtype = latest.rxtype || p.rxtype; }
+  else if (old.prev) { p.lastDate = old.prev.lastDate; p.lastRev = num(old.prev.lastRev); p.rxtype = old.prev.rxtype; }
+  if (latest && latest.rxtype === 'full' && num(latest.amount) > p.fullRev) p.fullRev = num(latest.amount);
+}
 function saveRefill() {
   const p = getP(state.refillId); if (!p) return;
   const date = $('rmDate').value, amount = num($('rmAmt').value), type = $('rmType').value;
   if (!parseISO(date)) return toast('Enter the dispense date', 'warn');
   if (date > todayISO()) return toast('Dispense date cannot be in the future', 'warn');
   if (amount < 0) return toast('Amount cannot be negative', 'warn');
-  p.refills.unshift({ date, amount, rxtype: type });
-  p.lastDate = date; p.lastRev = amount; p.rxtype = type;
-  if (type === 'full' && amount > p.fullRev) p.fullRev = amount;
+  const idx = state.refillIdx;
+  if (idx != null && p.refills[idx]) {
+    const old = p.refills[idx];
+    p.refills[idx] = { ...old, date, amount, rxtype: type };
+    syncFromRefills(p, old);
+  } else {
+    p.refills.unshift({ date, amount, rxtype: type, prev: { lastDate: p.lastDate, lastRev: p.lastRev, rxtype: p.rxtype, fullRev: p.fullRev } });
+    p.lastDate = date; p.lastRev = amount; p.rxtype = type;
+    if (type === 'full' && amount > p.fullRev) p.fullRev = amount;
+  }
   normalise(p); persist(); closeModal('rm');
-  toast(`Refill recorded · next due ${fmtDate(dueDate(p))}`, 'ok'); render(); refreshDetail();
+  toast(`${idx != null ? 'Refill updated' : 'Refill recorded'} · next due ${fmtDate(dueDate(p))}`, 'ok'); render(); refreshDetail();
+}
+function deleteRefill() {
+  const p = getP(state.refillId), idx = state.refillIdx; if (!p || idx == null || !p.refills[idx]) return;
+  const old = p.refills[idx];
+  if (!confirm(`Delete the refill dispensed on ${fmtDate(old.date)} (${sar(old.amount, 2)})?`)) return;
+  p.refills.splice(idx, 1);
+  syncFromRefills(p, old);
+  normalise(p); persist(); closeModal('rm');
+  toast(`Refill deleted · next due ${fmtDate(dueDate(p))}`, 'ok'); render(); refreshDetail();
 }
 
 // ═════════ DATA ═════════
@@ -1936,13 +1970,14 @@ function toast(msg, kind = 'ok') {
 function toggleMenu(open) { const m = $('menu'), o = open ?? !m.classList.contains('open'); m.classList.toggle('open', o); $('menuBtn').setAttribute('aria-expanded', o); }
 document.addEventListener('click', e => {
   if (!e.target.closest('.menu-wrap')) toggleMenu(false);
-  const el = e.target.closest('[data-nav],[data-act],[data-call],[data-refill],[data-edit],[data-open],[data-close],[data-out],[data-rmfile],[data-view],[data-dr],[data-h],[data-stop]');
+  const el = e.target.closest('[data-nav],[data-act],[data-call],[data-refill],[data-edit],[data-open],[data-close],[data-out],[data-rmfile],[data-view],[data-dr],[data-rf],[data-h],[data-stop]');
   if (!el) return;
   const d = el.dataset;
   if (d.nav) { e.preventDefault(); closeDetail(); return navigate(d.nav); }
   if (d.act) { toggleMenu(false); return ({ add: () => openForm(), export: exportCSV, backup, restore: () => $('restoreIn').click(), cloudRefresh: () => refreshFromCloud(true), setPassword, signOut })[d.act](); }
   if (d.call) return openCall(d.call);
   if (d.refill) return openRefill(d.refill);
+  if (d.rf !== undefined) return openRefill(state.detailId, +d.rf);
   if (d.edit) return openForm(d.edit);
   if (d.close !== undefined) return closeModal(el.closest('.overlay').id);
   if (d.out) return pickOutcome(d.out);
@@ -1989,6 +2024,7 @@ $('pmSave').onclick = saveForm;
 $('pmDel').onclick = () => { const id = state.editId; closeModal('pm'); confirmDelete(id); };
 $('cmSave').onclick = saveCall;
 $('rmSave').onclick = saveRefill;
+$('rmDel').onclick = deleteRefill;
 $('rmDate').addEventListener('change', refillHint);
 $('cfOk').onclick = () => { closeModal('cf'); if (confirmFn) confirmFn(); confirmFn = null; };
 const drop = $('drop');
