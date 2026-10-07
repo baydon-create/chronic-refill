@@ -398,6 +398,9 @@
   .in:focus, .ta:focus { border-color: var(--brand); box-shadow: 0 0 0 4px rgba(58,91,217,.12); }
   .in.bad { border-color: var(--red); box-shadow: 0 0 0 4px rgba(196,50,10,.1); }
   .hint { font-size: 12.5px; color: var(--text-3); }
+  .dupe { margin-top: 8px; padding: 11px 13px; border-radius: 10px; background: var(--amber-s); color: var(--amber); border: 1px solid rgba(147,96,15,.25); font-size: 13.5px; line-height: 1.45; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  .dupe[hidden] { display: none; }
+  .dupe b { color: var(--text); }
   .hint b { color: var(--text); font-weight: 600; }
   .calc { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 14px; border-radius: 12px; overflow: hidden; background: var(--ink); color: #fff; }
   .calc > div { padding: 14px 16px; border-left: 1px solid var(--ink-line); min-width: 0; }
@@ -772,8 +775,8 @@
     <div class="m-body">
       <div class="fs"><span class="fs-n">1</span><span class="fs-t">Patient details</span></div>
       <div class="fg">
+        <div class="field" style="grid-column:1/-1"><label for="f_id">Patient ID / MRN <span class="req">*</span></label><input class="in" id="f_id" placeholder="e.g. 1019337938" autocomplete="off"><div class="dupe" id="f_dupe" hidden></div></div>
         <div class="field"><label for="f_name">Full name <span class="req">*</span></label><input class="in" id="f_name" placeholder="e.g. Ahmed Hassan"></div>
-        <div class="field"><label for="f_id">Patient ID / MRN</label><input class="in" id="f_id" placeholder="Auto-generated if blank"></div>
         <div class="field"><label for="f_phone">Phone <span class="req">*</span></label><input class="in" id="f_phone" type="tel" placeholder="e.g. 055 123 4567"></div>
         <div class="field"><label for="f_insurance">Insurance / plan</label><input class="in" id="f_insurance" placeholder="e.g. Bupa Arabia"></div>
         <div class="field"><label for="f_condition">Chronic condition</label><input class="in" id="f_condition" placeholder="e.g. Diabetes, Hypertension"></div>
@@ -1502,9 +1505,9 @@ function openForm(id = null) {
   $('medRows').innerHTML = ''; (p && p.meds.length ? p.meds : [{}]).forEach(addMedRow);
   state.tempFiles = p ? (files[p.id] || []).map(f => ({ ...f })) : [];
   renderTempFiles();
-  document.querySelectorAll('#pm .bad').forEach(e => e.classList.remove('bad'));
+  document.querySelectorAll('#pm .bad').forEach(e => e.classList.remove('bad')); $('f_dupe').hidden = true;
   calcForm(); openModal('pm'); $('pm').querySelector('.m-body').scrollTop = 0;
-  setTimeout(() => $('f_name').focus(), 60);
+  setTimeout(() => $(p ? 'f_name' : 'f_id').focus(), 60);
 }
 function addMedRow(m = {}) {
   const row = document.createElement('div'); row.className = 'med-row';
@@ -1530,17 +1533,45 @@ function nextId() {
   let mx = 0; patients.forEach(p => { const m = /^P(\d+)$/.exec(p.id); if (m) mx = Math.max(mx, +m[1]); });
   let id; do { id = 'P' + String(++mx).padStart(3, '0'); } while (getP(id)); return id;
 }
-function saveForm() {
+// Patient ID is the unique key: an ID already on file is never saved as a second patient.
+const dupeOf = id => id && id !== state.editId ? getP(id) : null;
+function checkId() {
+  const p = dupeOf($('f_id').value.trim()), box = $('f_dupe');
+  if (!p) { box.hidden = true; return null; }
+  box.innerHTML = `<span>⚠️ Patient ID <b>${esc(p.id)}</b> is already registered: <b>${esc(p.name)}</b> · ${esc(p.phone)} · next refill ${fmtDate(dueDate(p))}.</span>`
+    + (state.editId ? '<span>Use a different ID.</span>' : '<button type="button" class="btn btn-sm btn-brand" id="f_dupeGo">Open existing file</button>');
+  box.hidden = false;
+  if ($('f_dupeGo')) $('f_dupeGo').onclick = () => openExisting(p.id);
+  return p;
+}
+// Looks the ID up in the cloud too, in case another device added it moments ago.
+async function checkIdInCloud(id) {
+  if (!id || !cloud.ready || getP(id)) return checkId();
+  try { const { data } = await withTimeout(sb.from('patients').select('*').eq('id', id).maybeSingle(), 8000); if (data) { applyRemote(data); cacheLocally(); softRender(); } } catch (e) {}
+  return checkId();
+}
+// Leaves the new-patient form for the existing file, bringing along medicines and attachments already entered.
+function openExisting(id) {
+  const newDocs = state.tempFiles.filter(f => !f.path), newMeds = readMeds();
+  closeModal('pm'); openForm(id);
+  const p = getP(id), have = new Set(p.meds.map(m => String(m.name).toLowerCase()));
+  const addMeds = newMeds.filter(m => !have.has(m.name.toLowerCase()));
+  if (addMeds.length) { document.querySelectorAll('#medRows .med-row').forEach(r => { if (!r.querySelector('input').value.trim()) r.remove(); }); addMeds.forEach(addMedRow); }
+  if (newDocs.length) { state.tempFiles.push(...newDocs); renderTempFiles(); }
+  toast(addMeds.length || newDocs.length ? `Opened ${p.name}'s file with your new medicines and attachments added. Review and save.` : `Opened ${p.name}'s existing file. Update it and save.`, 'ok');
+}
+async function saveForm() {
   const name = $('f_name').value.trim(), phone = $('f_phone').value.trim(), lastDate = $('f_lastDate').value;
+  const old = state.editId ? getP(state.editId) : null, id = $('f_id').value.trim();
+  if (!id) { $('f_id').classList.add('bad'); $('f_id').focus(); return toast('Patient ID is required', 'warn'); }
+  if (!old && !getP(id)) { $('pmSave').disabled = true; await checkIdInCloud(id); $('pmSave').disabled = false; }
+  if (dupeOf(id)) { $('f_id').classList.add('bad'); checkId(); $('pm').querySelector('.m-body').scrollTop = 0; return toast(`Patient ID ${id} is already registered`, 'warn'); }
   let bad = false;
   [['f_name', name], ['f_phone', phone], ['f_lastDate', parseISO(lastDate)]].forEach(([k, v]) => { $(k).classList.toggle('bad', !v); if (!v) bad = true; });
   if (bad) return toast('Please complete the required fields', 'warn');
   if (lastDate > todayISO()) { $('f_lastDate').classList.add('bad'); return toast('Last dispense date cannot be in the future', 'warn'); }
   if (num($('f_lastRev').value) < 0 || num($('f_fullRev').value) < 0) return toast('Values cannot be negative', 'warn');
-  const old = state.editId ? getP(state.editId) : null;
   const prevDocs = old ? files[old.id] || [] : [];
-  const id = $('f_id').value.trim() || (old ? old.id : nextId());
-  if (getP(id) && id !== old?.id) { $('f_id').classList.add('bad'); return toast(`Patient ID ${id} is already in use`, 'warn'); }
   const twin = patients.find(x => x !== old && personKey(x) === personKey({ name, phone }));
   if (twin) { $('f_phone').classList.add('bad'); return toast(`${twin.name} (${twin.id}) already has this name and phone`, 'warn'); }
   const rec = normalise({ ...(old || { logs: [], refills: [] }), id, name, phone,
@@ -1935,6 +1966,8 @@ async function startCloud(session) {
   if (!(session.user.user_metadata || {}).has_password) setTimeout(() => toast('Tip: Data menu → Set password, so you never wait for a sign-in email', 'ok'), 3500);
   if (!(await refreshFromCloud())) { cloud.ready = true; return; } // offline: work from the cached copy; saves retry
   cloud.ready = true;
+  const want = new URLSearchParams(location.search).get('patient');
+  if (want) { history.replaceState(null, '', location.pathname + location.hash); if (getP(want)) openDetail(want); else toast(`Patient ${want} was not found`, 'warn'); }
   await uploadThisDevice();
   moveDocsToCloud();
   sb.channel('patients').on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, ev => {
@@ -2024,6 +2057,9 @@ $('ptSort').onchange = e => { state.sort = e.target.value; renderPatients(); };
 ['f_name', 'f_phone', 'f_lastDate', 'f_id'].forEach(k => $(k).addEventListener('input', () => $(k).classList.remove('bad')));
 $('addMed').onclick = () => addMedRow();
 $('pmSave').onclick = saveForm;
+let idCheckT;
+$('f_id').addEventListener('input', () => { clearTimeout(idCheckT); idCheckT = setTimeout(checkId, 200); });
+$('f_id').addEventListener('blur', () => checkIdInCloud($('f_id').value.trim()));
 $('pmDel').onclick = () => { const id = state.editId; closeModal('pm'); confirmDelete(id); };
 $('cmSave').onclick = saveCall;
 $('rmSave').onclick = saveRefill;
