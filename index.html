@@ -167,6 +167,7 @@
   .x-green { background: var(--green-s); color: var(--green); }
   .x-brand { background: var(--brand-s); color: var(--brand); }
   .x-amber { background: var(--amber-s); color: var(--amber); }
+  .x-gray { background: var(--line-2); color: var(--text-2); }
   .t-red { color: var(--red); } .t-orange { color: var(--orange); } .t-violet { color: var(--violet); }
   .t-green { color: var(--green); } .t-brand { color: var(--brand); } .t-amber { color: var(--amber); }
 
@@ -199,6 +200,7 @@
   .b-soon { background: var(--violet-s); color: var(--violet); }
   .b-ok { background: var(--green-s); color: var(--green); }
   .b-cb { background: var(--brand-s); color: var(--brand-t); }
+  .b-lost { background: var(--line-2); color: var(--text-2); }
   .tag { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 6px; font-size: 12px; font-weight: 500; white-space: nowrap; }
   .rx-full { background: #F1F3F7; color: var(--text-2); }
   .rx-partial { background: var(--amber-s); color: var(--amber); }
@@ -423,13 +425,16 @@
   .drop-t span { color: var(--brand); }
   .drop-s { font-size: 12.5px; color: var(--text-3); margin-top: 2px; }
   .files { margin-top: 10px; }
-  .outs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .outs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
   .out { border: 1px solid var(--line); border-radius: 12px; padding: 16px 8px; display: flex; flex-direction: column; align-items: center; gap: 8px; font-weight: 500; font-size: 14px; color: var(--text-2); transition: all .15s; }
   .out .chip-ic { width: 38px; height: 38px; }
   .out:hover { border-color: #C9CFDA; }
   .out.sel-won { border-color: var(--green); background: var(--green-s); color: var(--green); box-shadow: 0 0 0 1px var(--green); }
   .out.sel-miss { border-color: var(--violet); background: var(--violet-s); color: var(--violet); box-shadow: 0 0 0 1px var(--violet); }
   .out.sel-no { border-color: var(--red); background: var(--red-s); color: var(--red); box-shadow: 0 0 0 1px var(--red); }
+  .out.sel-lost { border-color: var(--text-2); background: var(--line-2); color: var(--text); box-shadow: 0 0 0 1px var(--text-2); }
+  .lost-box { margin: 16px 24px 0; padding: 12px 14px; border-radius: 10px; background: var(--line-2); color: var(--text-2); font-size: 13.5px; line-height: 1.45; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  .lost-box b { color: var(--text); }
 
   /* ═════════ FOOTER / TOAST / RESPONSIVE ═════════ */
   .foot { border-top: 1px solid var(--line); padding: 22px 0 28px; color: var(--text-3); font-size: 13px; }
@@ -512,6 +517,7 @@
     .perf { flex-direction: column; align-items: stretch; }
     .perf .ring { align-self: center; }
     .dr-cycle { gap: 14px; padding: 14px; }
+    .outs { grid-template-columns: repeat(2, 1fr); }
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
@@ -629,6 +635,7 @@
           <button class="ptab" data-nav="patients:soon">Next 7 days <span class="n" data-count="soon"></span></button>
           <button class="ptab" data-nav="patients:partial">Upsell <span class="n" data-count="partial"></span></button>
           <button class="ptab" data-nav="patients:callback">Call-backs <span class="n" data-count="callback"></span></button>
+          <button class="ptab" data-nav="patients:lost">Lost <span class="n" data-count="lost"></span></button>
         </div>
         <div class="tools">
           <label class="search"><i data-ic="search"></i><input id="ptSearch" type="search" placeholder="Name, ID, phone, condition, insurer" autocomplete="off" aria-label="Search patients"></label>
@@ -837,9 +844,10 @@
         <button class="out" data-out="won"><span class="chip-ic x-green"><i data-ic="checkCircle"></i></span>Patient coming</button>
         <button class="out" data-out="miss"><span class="chip-ic x-violet"><i data-ic="calendar"></i></span>Rescheduled</button>
         <button class="out" data-out="no"><span class="chip-ic x-red"><i data-ic="phoneOff"></i></span>No answer</button>
+        <button class="out" data-out="lost"><span class="chip-ic x-gray"><i data-ic="userX"></i></span>Lost · got it elsewhere</button>
       </div>
       <div class="field" style="margin-top:16px"><label for="cmNote">Note</label><textarea class="ta" id="cmNote" placeholder="e.g. Confirmed Thursday, will take all items on the prescription"></textarea></div>
-      <div class="field" style="margin-top:14px"><label for="cmNext">Next follow-up</label><input class="in" id="cmNext" type="date"><div class="hint">The patient appears under Call-backs on this date</div></div>
+      <div class="field" style="margin-top:14px" id="cmNextF"><label for="cmNext">Next follow-up</label><input class="in" id="cmNext" type="date"><div class="hint">The patient appears under Call-backs on this date</div></div>
     </div>
     <div class="m-foot">
       <button class="btn" data-close>Cancel</button>
@@ -949,6 +957,7 @@ const ICONS = {
   repeat: '<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
   percent: '<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
   sigma: '<path d="M18 7V4H6l6 8-6 8h12v-3"/>',
+  userX: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="22" y2="13"/><line x1="22" y1="8" x2="17" y2="13"/>',
   send: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
 };
 const ic = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ''}</svg>`;
@@ -1020,6 +1029,7 @@ function normalise(p) {
 const dueDate = p => addDays(p.lastDate, p.cycle);
 const daysToDue = p => diffDays(todayISO(), dueDate(p));
 function status(p) {
+  if (isLost(p)) return { key: 'lost', b: 'b-lost', t: 'muted', col: 'var(--text-3)', ring: '#8A94A6' };
   const d = daysToDue(p);
   if (d < 0) return { key: 'overdue', b: 'b-overdue', t: 't-red', col: 'var(--red)', ring: '#F07B63' };
   if (d === 0) return { key: 'today', b: 'b-today', t: 't-orange', col: 'var(--orange)', ring: '#F5A55B' };
@@ -1028,8 +1038,13 @@ function status(p) {
 }
 function cycleProgress(p) { const el = Math.max(0, diffDays(p.lastDate, todayISO())); return { elapsed: el, pct: Math.min(1, el / p.cycle) }; }
 const lastLog = p => p.logs[0] || null;
+// A patient who got their medicines elsewhere is "lost": a call logged with that outcome. They leave every queue,
+// count and forecast, but keep their file and history. Any later call, a new refill or Reactivate brings them back.
+const isLost = p => { const l = lastLog(p); return !!(l && l.outcome === 'lost'); };
+const active = () => patients.filter(p => !isLost(p));
+const dueLabel = p => isLost(p) ? 'Lost' : relDays(daysToDue(p));
 const callbackDue = (p, on = todayISO()) => { const l = lastLog(p); return !!(l && l.next && l.next <= on); };
-const isUpsell = p => revenue(p).upsell > 0;
+const isUpsell = p => !isLost(p) && revenue(p).upsell > 0;
 const FILTERS = {
   all:      { title: 'All patients',            test: () => true },
   overdue:  { title: 'Overdue refills',         test: p => status(p).key === 'overdue' },
@@ -1037,6 +1052,7 @@ const FILTERS = {
   soon:     { title: 'Due in the next 7 days',  test: p => status(p).key === 'soon' },
   partial:  { title: 'Upsell opportunities',    test: isUpsell },
   callback: { title: 'Call-backs due',          test: p => callbackDue(p) },
+  lost:     { title: 'Lost patients',           test: isLost },
 };
 
 patients.forEach(normalise);
@@ -1084,6 +1100,8 @@ const rxName = t => t === 'full' ? 'Full Rx' : t === 'partial' ? 'Partial Rx' : 
 const rxTag = t => `<span class="tag rx-${t}">${rxName(t)}</span>`;
 function outcomeMeta(o) {
   return o === 'won' ? { label: 'Patient coming', short: 'Coming', icon: 'checkCircle', t: 't-green', x: 'x-green' }
+    : o === 'lost' ? { label: 'Lost · got medicines elsewhere', short: 'Lost', icon: 'userX', t: 'muted', x: 'x-gray' }
+    : o === 'back' ? { label: 'Back on follow-up', short: 'Reactivated', icon: 'repeat', t: 't-brand', x: 'x-brand' }
     : o === 'miss' ? { label: 'Rescheduled', short: 'Rescheduled', icon: 'calendar', t: 't-violet', x: 'x-violet' }
     : { label: 'No answer', short: 'No answer', icon: 'phoneOff', t: 't-red', x: 'x-red' };
 }
@@ -1108,13 +1126,13 @@ function kpiCard({ nav, icon, x, label, value, foot, tone = '' }) {
 }
 const emptyHTML = (icon, t, s) => `<div class="empty"><span class="chip-ic x-brand">${ic(icon)}</span><div class="empty-t">${t}</div><div class="empty-s">${s}</div></div>`;
 function statusSummary() {
-  const s = { overdue: [0, 0], today: [0, 0], soon: [0, 0], ok: [0, 0] };
+  const s = { overdue: [0, 0], today: [0, 0], soon: [0, 0], ok: [0, 0], lost: [0, 0] };
   patients.forEach(p => { const k = status(p).key; s[k][0]++; s[k][1] += revenue(p).base; });
   return s;
 }
 function conversion(days) {
-  const since = addDays(todayISO(), -(days - 1)), to = todayISO(), r = { calls: 0, won: 0, miss: 0, no: 0 };
-  patients.forEach(p => p.logs.forEach(l => { if (l.date >= since && l.date <= to) { r.calls++; r[l.outcome === 'won' ? 'won' : l.outcome === 'miss' ? 'miss' : 'no']++; } }));
+  const since = addDays(todayISO(), -(days - 1)), to = todayISO(), r = { calls: 0, won: 0, miss: 0, no: 0, lost: 0 };
+  patients.forEach(p => p.logs.forEach(l => { if (l.outcome !== 'back' && l.date >= since && l.date <= to) { r.calls++; r[['won', 'miss', 'lost'].includes(l.outcome) ? l.outcome : 'no']++; } }));
   r.rate = r.calls ? Math.round(r.won / r.calls * 100) : 0;
   return r;
 }
@@ -1149,8 +1167,8 @@ function renderOverview() {
   const h = new Date().getHours(), greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
   const s = statusSummary(), c = counts(), queue = priorityQueue();
   const now = queue.filter(q => q.rank < 3), nowVal = now.reduce((a, q) => a + revenue(q.p).est, 0);
-  const up = patients.reduce((a, p) => a + revenue(p).upsell, 0);
-  const run = patients.reduce((a, p) => a + revenue(p).base * 30 / p.cycle, 0);
+  const act = active(), up = act.reduce((a, p) => a + revenue(p).upsell, 0);
+  const run = act.reduce((a, p) => a + revenue(p).base * 30 / p.cycle, 0);
   const conv = conversion(30);
 
   setHero(longDate(), greet,
@@ -1159,7 +1177,7 @@ function renderOverview() {
     `<div class="hero-stats">
       <div class="hero-stat"><div class="l">In today's queue</div><div class="v">${sarH(nowVal)}</div><div class="d">${plural(now.length, 'call')} to make</div></div>
       <div class="hero-stat"><div class="l">Upsell pipeline</div><div class="v">${sarH(up)}</div><div class="d">${plural(c.partial, 'patient')}</div></div>
-      <div class="hero-stat"><div class="l">Monthly run-rate</div><div class="v">${sarH(run)}</div><div class="d mint">${conv.calls ? conv.rate + '% call conversion' : plural(patients.length, 'patient') + ' on file'}</div></div>
+      <div class="hero-stat"><div class="l">Monthly run-rate</div><div class="v">${sarH(run)}</div><div class="d mint">${conv.calls ? conv.rate + '% call conversion' : plural(act.length, 'active patient')}</div></div>
     </div>`);
 
   $('ovKpis').innerHTML = [
@@ -1195,15 +1213,16 @@ function renderOverview() {
       <div><span class="chip-ic x-green">${ic('checkCircle')}</span>Patient coming<b>${conv.won}</b></div>
       <div><span class="chip-ic x-violet">${ic('calendar')}</span>Rescheduled<b>${conv.miss}</b></div>
       <div><span class="chip-ic x-red">${ic('phoneOff')}</span>No answer<b>${conv.no}</b></div>
+      ${conv.lost ? `<div><span class="chip-ic x-gray">${ic('userX')}</span>Lost<b>${conv.lost}</b></div>` : ''}
     </div></div>`;
 
-  const n = patients.length || 1;
-  const byT = ['full', 'partial', 'none'].map(t => [rxName(t), patients.filter(p => p.rxtype === t).length]);
-  const byC = [27, 56, 84, 180].map(cy => [`${cy}-day cycle`, patients.filter(p => p.cycle === cy).length]).filter(x => x[1]);
-  const other = patients.filter(p => ![27, 56, 84, 180].includes(p.cycle)).length;
+  const n = act.length || 1;
+  const byT = ['full', 'partial', 'none'].map(t => [rxName(t), act.filter(p => p.rxtype === t).length]);
+  const byC = [27, 56, 84, 180].map(cy => [`${cy}-day cycle`, act.filter(p => p.cycle === cy).length]).filter(x => x[1]);
+  const other = act.filter(p => ![27, 56, 84, 180].includes(p.cycle)).length;
   if (other) byC.push(['Other cycles', other]);
   const row = ([l, v]) => `<div class="mix-row"><span>${l}</span><div class="track"><span style="width:${v / n * 100}%"></span></div><div class="n">${v}<span>${Math.round(v / n * 100)}%</span></div></div>`;
-  $('ovMix').innerHTML = patients.length ? `<div class="lbl-sm">Dispense type</div>${byT.map(row).join('')}<div class="lbl-sm" style="margin-top:14px">Refill cycle</div>${byC.map(row).join('')}` : '<div class="muted sm">No patients yet</div>';
+  $('ovMix').innerHTML = act.length ? `<div class="lbl-sm">Dispense type</div>${byT.map(row).join('')}<div class="lbl-sm" style="margin-top:14px">Refill cycle</div>${byC.map(row).join('')}` : '<div class="muted sm">No patients yet</div>';
 }
 
 // ═════════ CHARTS ═════════
@@ -1262,7 +1281,7 @@ function drawDueChart() {
   const buckets = [{ label: 'Late', labelColor: 'var(--red)', forceLabel: true, parts: [{ v: over.length, color: '#D9573A' }],
     tip: `<b>Overdue</b><br>${plural(over.length, 'patient')} · ${sar(over.reduce((a, p) => a + revenue(p).est, 0))}${names3(over)}` }];
   for (let i = 0; i < 14; i++) {
-    const day = addDays(t, i), ps = patients.filter(p => dueDate(p) === day);
+    const day = addDays(t, i), ps = active().filter(p => dueDate(p) === day);
     buckets.push({ label: fmtDate(day, { day: 'numeric' }), labelColor: i === 0 ? 'var(--brand)' : '', parts: [{ v: ps.length, color: 'var(--c-base)' }],
       tip: `<b>${fmtDate(day, { weekday: 'short', day: 'numeric', month: 'short' })}</b><br>${plural(ps.length, 'refill')} · ${sar(ps.reduce((a, p) => a + revenue(p).est, 0))}${names3(ps)}` });
   }
@@ -1272,8 +1291,8 @@ function drawDueChart() {
 // ═════════ PATIENTS ═════════
 function renderPatients() {
   const f = FILTERS[state.filter], s = statusSummary(), c = counts();
-  const up = patients.reduce((a, p) => a + revenue(p).upsell, 0);
-  setHero('Patients', f.title, `${plural(patients.length, 'patient')} on chronic refill follow-up · ${longDate()}`);
+  const act = active(), up = act.reduce((a, p) => a + revenue(p).upsell, 0);
+  setHero('Patients', f.title, `${plural(act.length, 'patient')} on chronic refill follow-up${c.lost ? ` · ${c.lost} lost` : ''} · ${longDate()}`);
   $('ptKpis').innerHTML = [
     kpiCard({ nav: 'patients:overdue', icon: 'alert', x: 'x-red', label: 'Overdue', value: s.overdue[0], tone: s.overdue[0] ? 't-red' : '', foot: s.overdue[0] ? `${sar(s.overdue[1])} at risk` : 'Nothing overdue' }),
     kpiCard({ nav: 'patients:today', icon: 'clock', x: 'x-orange', label: 'Due today', value: s.today[0], foot: s.today[0] ? `${sar(s.today[1])} expected` : 'Nothing due today' }),
@@ -1290,11 +1309,12 @@ function renderPatients() {
   };
   const rows = patients.filter(f.test).filter(p => !state.type || p.rxtype === state.type)
     .filter(p => !q || [p.name, p.id, p.phone, p.phone.replace(/\s/g, ''), p.condition, p.insurance, p.hospital].join(' ').toLowerCase().includes(q))
-    .sort(sorters[state.sort]);
+    .sort((a, b) => isLost(a) - isLost(b) || sorters[state.sort](a, b)); // lost patients last
   $('ptCount').textContent = `Showing ${rows.length} of ${patients.length}`;
 
   if (!rows.length) {
     const e = q || state.type ? emptyHTML('search', 'No matching patients', 'Try another name, ID or phone, or clear the filters.')
+      : state.filter === 'lost' ? emptyHTML('checkCircle', 'No lost patients', 'Patients marked lost from a call appear here, with their history kept.')
       : patients.length ? emptyHTML('checkCircle', 'Nothing in this list', 'Every patient here is up to date.')
       : emptyHTML('userPlus', 'No patients yet', 'Add your first patient to start tracking refills.');
     $('ptBody').innerHTML = `<tr><td colspan="7">${e}</td></tr>`; $('ptCards').innerHTML = e; return;
@@ -1305,7 +1325,7 @@ function renderPatients() {
       <td>${whoHTML(p, `${id} · ${phoneLink(p)}`)}</td>
       <td>${rxTag(p.rxtype)}<div class="who-m" style="margin-top:4px;max-width:190px">${esc(p.condition) || plural(p.meds.length, 'medicine')}</div></td>
       <td class="cyc"><div class="cyc-bar"><span style="width:${cp.pct * 100}%;background:${st.col}"></span></div><div class="cyc-t"><span>Day ${cp.elapsed} of ${p.cycle}</span><span>${Math.round(cp.pct * 100)}%</span></div></td>
-      <td><div class="nw" style="font-weight:500">${fmtDate(dueDate(p))}</div><div style="margin-top:4px"><span class="badge ${st.b}">${relDays(daysToDue(p))}</span></div></td>
+      <td><div class="nw" style="font-weight:500">${fmtDate(dueDate(p))}</div><div style="margin-top:4px"><span class="badge ${st.b}">${dueLabel(p)}</span></div></td>
       <td>${contactHTML(p)}</td>
       <td class="r">${valueHTML(p)}</td>
       <td class="r"><div class="acts" data-stop>
@@ -1317,7 +1337,7 @@ function renderPatients() {
   $('ptCards').innerHTML = rows.map(p => {
     const st = status(p), cp = cycleProgress(p), id = esc(p.id);
     return `<div class="pc" data-open="${id}">
-      <div class="pc-top">${whoHTML(p, `${rxName(p.rxtype)} · ${phoneLink(p)}`)}<span class="badge ${st.b}">${relDays(daysToDue(p))}</span></div>
+      <div class="pc-top">${whoHTML(p, `${rxName(p.rxtype)} · ${phoneLink(p)}`)}<span class="badge ${st.b}">${dueLabel(p)}</span></div>
       <div class="pc-mid"><div class="cyc-bar"><span style="width:${cp.pct * 100}%;background:${st.col}"></span></div><div class="cyc-t"><span>Day ${cp.elapsed} of ${p.cycle} · due ${fmtShort(dueDate(p))}</span><span>${Math.round(cp.pct * 100)}%</span></div></div>
       <div class="pc-bot"><div>${valueHTML(p)}</div><div class="acts" data-stop>
         <button class="btn btn-sm btn-brand" data-call="${id}">${ic('phone')}Call</button>
@@ -1336,7 +1356,7 @@ function forecast(H) {
   });
   const byType = {}; ['full', 'partial', 'none'].forEach(t => byType[t] = { pts: 0, n: 0, base: 0, up: 0 });
   const tot = { n: 0, base: 0, up: 0, runBase: 0, runPot: 0, risk: 0, riskN: 0 };
-  patients.forEach(p => {
+  active().forEach(p => {
     const r = revenue(p);
     tot.runBase += r.base * 30 / p.cycle; tot.runPot += r.est * 30 / p.cycle;
     if (status(p).key === 'overdue') { tot.risk += r.base; tot.riskN++; }
@@ -1357,7 +1377,7 @@ function renderForecast() {
     `Expected refill revenue from <strong>${fmtDate(f.start)}</strong> to <strong>${fmtDate(f.end)}</strong>: ${sar(f.base)} baseline, plus ${sar(f.up)} if every partial prescription converts to full.`,
     `<div class="seg-dark" role="group" aria-label="Forecast window">${[7, 30, 90].map(h => `<button data-h="${h}" class="${h === H ? 'active' : ''}">${h} days</button>`).join('')}</div>`);
   $('fcKpis').innerHTML = [
-    kpiCard({ icon: 'repeat', x: 'x-brand', label: 'Expected refills', value: f.n, foot: `From ${plural(patients.length, 'patient')} on file` }),
+    kpiCard({ icon: 'repeat', x: 'x-brand', label: 'Expected refills', value: f.n, foot: `From ${plural(active().length, 'active patient')}` }),
     kpiCard({ icon: 'trend', x: 'x-brand', label: 'Baseline revenue', value: sarH(f.base), foot: 'At last dispensed values' }),
     kpiCard({ icon: 'banknote', x: 'x-amber', label: 'Upsell potential', value: sarH(f.up), tone: f.up ? 't-amber' : '', foot: f.base ? `+${Math.round(f.up / f.base * 100)}% on top of baseline` : 'No baseline in window' }),
     kpiCard({ icon: 'grid', x: 'x-green', label: 'Monthly run-rate', value: sarH(f.runBase), foot: `Up to ${sar(f.runPot)} with full Rx` }),
@@ -1382,8 +1402,8 @@ function renderForecast() {
 // ═════════ CALL CENTER ═════════
 function renderCalls() {
   const day = state.callDate, isToday = day === todayISO();
-  const calls = []; patients.forEach(p => p.logs.forEach(l => { if (l.date === day) calls.push({ p, l }); }));
-  const by = o => calls.filter(c => c.l.outcome === o), won = by('won'), miss = by('miss'), no = calls.filter(c => c.l.outcome !== 'won' && c.l.outcome !== 'miss');
+  const calls = []; patients.forEach(p => p.logs.forEach(l => { if (l.date === day && l.outcome !== 'back') calls.push({ p, l }); }));
+  const by = o => calls.filter(c => c.l.outcome === o), won = by('won'), miss = by('miss'), lost = by('lost'), no = calls.filter(c => !['won', 'miss', 'lost'].includes(c.l.outcome));
   const wonRev = won.reduce((a, c) => a + revenue(c.p).est, 0);
   const cbs = patients.filter(p => callbackDue(p, day)).sort((a, b) => lastLog(a).next.localeCompare(lastLog(b).next));
   setHero('Call center', isToday ? "Today's calls" : fmtDate(day, { weekday: 'long', day: 'numeric', month: 'long' }),
@@ -1401,7 +1421,7 @@ function renderCalls() {
     kpiCard({ icon: 'phone', x: 'x-brand', label: 'Calls made', value: calls.length, foot: calls.length ? `${Math.round(won.length / calls.length * 100)}% converted` : 'No calls logged' }),
     kpiCard({ icon: 'checkCircle', x: 'x-green', label: 'Patients coming', value: won.length, tone: won.length ? 't-green' : '', foot: won.length ? `${sar(wonRev)} expected` : 'None confirmed' }),
     kpiCard({ icon: 'calendar', x: 'x-violet', label: 'Rescheduled', value: miss.length, foot: 'Follow-up date set' }),
-    kpiCard({ icon: 'phoneOff', x: 'x-red', label: 'No answer', value: no.length, foot: 'Retry later' }),
+    kpiCard({ icon: 'phoneOff', x: 'x-red', label: 'No answer', value: no.length, foot: lost.length ? `Retry later · ${lost.length} lost` : 'Retry later' }),
   ].join('');
   $('clSub').textContent = `${plural(calls.length, 'call')} on ${fmtDate(day)}`;
   $('clBody').innerHTML = calls.length ? calls.map(({ p, l }) => { const m = outcomeMeta(l.outcome);
@@ -1417,7 +1437,7 @@ function renderCalls() {
       <td>${whoHTML(p, `${esc(p.id)} · ${phoneLink(p)}`)}</td>
       <td class="nw"><div style="font-weight:500">${fmtDate(l.next)}</div>${late > 0 ? `<div class="who-m t-red">${plural(late, 'day')} late</div>` : '<div class="who-m">On time</div>'}</td>
       <td><span class="contact"><span class="${m.t}">${ic(m.icon)}</span>${m.short}</span><div class="who-m">${fmtShort(l.date)}</div></td>
-      <td><span class="badge ${st.b}">${relDays(daysToDue(p))}</span></td>
+      <td><span class="badge ${st.b}">${dueLabel(p)}</span></td>
       <td class="r"><div class="acts" data-stop><button class="btn btn-sm btn-brand" data-call="${esc(p.id)}">${ic('phone')}Call</button></div></td></tr>`; }).join('')
     : `<tr><td colspan="5">${emptyHTML('checkCircle', 'No call-backs due', 'Set a follow-up date when logging a call.')}</td></tr>`;
 }
@@ -1436,7 +1456,7 @@ function openDetail(id) {
       <div class="ring">${ringSVG(cp.pct, st.ring, 34, 7, 'rgba(255,255,255,.1)')}<div class="c"><div><b>${Math.round(cp.pct * 100)}%</b><span>of cycle</span></div></div></div>
       <div class="dr-ci">
         <div><div class="l">Next refill</div><div class="v">${fmtDate(dueDate(p))}</div></div>
-        <div><div class="l">Status</div><div class="v">${relDays(daysToDue(p))}</div></div>
+        <div><div class="l">Status</div><div class="v">${dueLabel(p)}</div></div>
         <div><div class="l">Last dispense</div><div class="v">${fmtDate(p.lastDate)}</div></div>
         <div><div class="l">Cycle</div><div class="v">${p.cycle} days · ${rxName(p.rxtype)}</div></div>
       </div>
@@ -1452,7 +1472,9 @@ function openDetail(id) {
     const m = outcomeMeta(e.l.outcome);
     return `<div class="tl"><span class="dot ${m.x}">${ic(m.icon)}</span><div class="tl-h">${m.label} <span>· ${fmtDate(e.date)}</span></div>${e.l.note ? `<div class="tl-b">${esc(e.l.note)}</div>` : ''}${e.l.next ? `<div class="tl-b muted">Follow-up ${fmtDate(e.l.next)}</div>` : ''}</div>`;
   }).join('') : '<div class="muted sm">No calls or refills recorded yet</div>';
+  const lost = isLost(p) && lastLog(p);
   $('drBody').innerHTML = `
+    ${lost ? `<div class="lost-box"><span><b>Lost</b> since ${fmtDate(lost.date)}${lost.note ? ` · ${esc(lost.note)}` : ''}. Not in any queue or forecast; history kept.</span><button class="btn btn-sm" data-dr="reactivate">${ic('repeat')}Reactivate</button></div>` : ''}
     <div class="dr-sec"><div class="dr-sec-t">Revenue per refill</div>
       <div class="money">
         <div><div class="l">Baseline</div><div class="v">${sar(r.base)}</div></div>
@@ -1610,7 +1632,7 @@ function openCall(id) {
   const p = getP(id); if (!p) return;
   state.callId = id; state.outcome = null;
   $('cmS').innerHTML = `${esc(p.name)} · <a href="tel:${tel(p.phone)}" class="t-brand">${esc(p.phone)}</a>`;
-  $('cmNote').value = ''; $('cmNext').value = ''; $('cmNext').classList.remove('bad');
+  $('cmNote').value = ''; $('cmNext').value = ''; $('cmNext').classList.remove('bad'); $('cmNextF').hidden = false;
   document.querySelectorAll('.out').forEach(b => b.className = 'out');
   openModal('cm');
 }
@@ -1618,16 +1640,24 @@ function pickOutcome(o) {
   state.outcome = o;
   document.querySelectorAll('.out').forEach(b => b.className = 'out' + (b.dataset.out === o ? ' sel-' + o : ''));
   const p = getP(state.callId), t = todayISO();
-  $('cmNext').value = o === 'miss' ? addDays(t, 2) : o === 'no' ? addDays(t, 1) : (p && dueDate(p) > t ? dueDate(p) : addDays(t, 3));
+  $('cmNextF').hidden = o === 'lost'; // a lost patient is not followed up
+  $('cmNote').placeholder = o === 'lost' ? 'e.g. Dispensed at another pharmacy on 5 Oct' : 'e.g. Confirmed Thursday, will take all items on the prescription';
+  $('cmNext').value = o === 'lost' ? '' : o === 'miss' ? addDays(t, 2) : o === 'no' ? addDays(t, 1) : (p && dueDate(p) > t ? dueDate(p) : addDays(t, 3));
 }
 function saveCall() {
   if (!state.outcome) return toast('Choose a call outcome', 'warn');
   const p = getP(state.callId); if (!p) return;
-  const next = $('cmNext').value;
+  const next = state.outcome === 'lost' ? '' : $('cmNext').value;
   if (next && next < todayISO()) { $('cmNext').classList.add('bad'); return toast('Follow-up date cannot be in the past', 'warn'); }
   p.logs.unshift({ date: todayISO(), outcome: state.outcome, note: $('cmNote').value.trim(), next });
   persist(); closeModal('cm');
-  toast(state.outcome === 'won' ? `${p.name} confirmed coming` : 'Call logged', 'ok'); render(); refreshDetail();
+  toast(state.outcome === 'won' ? `${p.name} confirmed coming` : state.outcome === 'lost' ? `${p.name} marked lost · removed from the queue, history kept` : 'Call logged', 'ok');
+  render(); refreshDetail();
+}
+function reactivate(id) {
+  const p = getP(id); if (!p || !isLost(p)) return;
+  p.logs.unshift({ date: todayISO(), outcome: 'back', note: '', next: '' });
+  persist(); toast(`${p.name} is back on follow-up · ${dueLabel(p).toLowerCase()}`, 'ok'); render(); refreshDetail();
 }
 function openRefill(id, idx) {
   const p = getP(id); if (!p) return;
@@ -1670,6 +1700,7 @@ function saveRefill() {
     p.refills[idx] = { ...old, date, amount, rxtype: type };
     syncFromRefills(p, old);
   } else {
+    if (isLost(p)) p.logs.unshift({ date: todayISO(), outcome: 'back', note: 'Refill recorded', next: '' });
     p.refills.unshift({ date, amount, rxtype: type, prev: { lastDate: p.lastDate, lastRev: p.lastRev, rxtype: p.rxtype, fullRev: p.fullRev } });
     p.lastDate = date; p.lastRev = amount; p.rxtype = type;
     if (type === 'full' && amount > p.fullRev) p.fullRev = amount;
@@ -1694,10 +1725,10 @@ function download(name, content, type) {
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 function exportCSV() {
-  const head = ['ID', 'Name', 'Phone', 'Insurance', 'Condition', 'Hospital', 'Last dispense', 'Cycle (days)', 'Dispense type', 'Next due', 'Days to due', 'Cycle progress %', 'Last dispensed (SAR)', 'Full Rx value (SAR)', 'Baseline (SAR)', 'Upsell (SAR)', 'Potential (SAR)', 'Last call', 'Last outcome', 'Next follow-up', 'Medicines'];
+  const head = ['ID', 'Name', 'Phone', 'Insurance', 'Condition', 'Hospital', 'Last dispense', 'Cycle (days)', 'Dispense type', 'Next due', 'Days to due', 'Cycle progress %', 'Last dispensed (SAR)', 'Full Rx value (SAR)', 'Baseline (SAR)', 'Upsell (SAR)', 'Potential (SAR)', 'Last call', 'Last outcome', 'Next follow-up', 'Status', 'Medicines'];
   const rows = patients.map(p => { const r = revenue(p), l = lastLog(p);
     return [p.id, p.name, p.phone, p.insurance, p.condition, p.hospital, p.lastDate, p.cycle, rxName(p.rxtype), dueDate(p), daysToDue(p), Math.round(cycleProgress(p).pct * 100),
-      r.last.toFixed(2), r.full.toFixed(2), r.base.toFixed(2), r.upsell.toFixed(2), r.est.toFixed(2), l ? l.date : '', l ? outcomeMeta(l.outcome).label : '', l ? l.next || '' : '', p.meds.map(m => `${m.name} ${m.qty}`.trim()).join('; ')]; });
+      r.last.toFixed(2), r.full.toFixed(2), r.base.toFixed(2), r.upsell.toFixed(2), r.est.toFixed(2), l ? l.date : '', l ? outcomeMeta(l.outcome).label : '', l ? l.next || '' : '', isLost(p) ? 'Lost' : 'Active', p.meds.map(m => `${m.name} ${m.qty}`.trim()).join('; ')]; });
   download(`ChronicRx_Export_${todayISO()}.csv`, '﻿' + [head, ...rows].map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
   toast('Exported to CSV', 'ok');
 }
@@ -2020,7 +2051,7 @@ document.addEventListener('click', e => {
   if (d.rmfile) { state.tempFiles.splice(+d.rmfile, 1); return renderTempFiles(); }
   if (d.view) return viewFile(state.detailId, +d.view);
   if (d.h) { state.horizon = +d.h; return renderForecast(); }
-  if (d.dr) { const id = state.detailId; return ({ call: openCall, refill: openRefill, edit: openForm, delete: confirmDelete })[d.dr](id); }
+  if (d.dr) { const id = state.detailId; return ({ call: openCall, refill: openRefill, edit: openForm, delete: confirmDelete, reactivate })[d.dr](id); }
   if (d.stop !== undefined) return;
   if (d.open) return openDetail(d.open);
 });
