@@ -897,6 +897,25 @@
 
 <input type="file" id="restoreIn" accept=".json,application/json" hidden>
 
+<!-- SET PASSWORD -->
+<div class="overlay" id="pw">
+  <div class="modal md" role="dialog" aria-modal="true" aria-labelledby="pwT">
+    <div class="m-head">
+      <span class="chip-ic x-brand"><i data-ic="edit"></i></span>
+      <div><div class="m-t" id="pwT">Set password</div><div class="m-s">Use it with your email on every device</div></div>
+      <button class="ib" data-close aria-label="Close"><i data-ic="x"></i></button>
+    </div>
+    <div class="m-body">
+      <div class="field" style="margin-top:18px"><label for="pwNew">New password</label><input class="in" id="pwNew" type="password" autocomplete="new-password" placeholder="At least 8 characters"></div>
+      <div class="field" style="margin-top:14px"><label for="pwAgain">Type it again</label><input class="in" id="pwAgain" type="password" autocomplete="new-password"></div>
+    </div>
+    <div class="m-foot">
+      <button class="btn" data-close>Cancel</button>
+      <button class="btn btn-brand" id="pwSave"><i data-ic="check"></i>Save password</button>
+    </div>
+  </div>
+</div>
+
 <!-- SIGN IN -->
 <div class="overlay" id="auth">
   <div class="modal md" role="dialog" aria-modal="true" aria-labelledby="authT">
@@ -1980,12 +1999,18 @@ async function sendLink() {
     : /rate limit/i.test(error.message) ? 'Too many sign-in emails were sent in the last hour (the email service allows only a few). Sign in with your password, or try the link again later.'
     : `Could not send the link: ${esc(error.message)}`;
 }
-async function setPassword() {
-  const pw = prompt('Choose a password for ChronicRx (at least 8 characters).\nYou will use it with your email on every device.');
-  if (pw === null) return;
-  if (pw.length < 8) return toast('The password needs at least 8 characters', 'warn');
-  if (prompt('Type the same password again to confirm') !== pw) return toast('The passwords did not match — nothing changed', 'warn');
+function setPassword() {
+  ['pwNew', 'pwAgain'].forEach(k => { $(k).value = ''; $(k).classList.remove('bad'); });
+  openModal('pw'); setTimeout(() => $('pwNew').focus(), 60);
+}
+async function savePassword() {
+  const pw = $('pwNew').value;
+  if (pw.length < 8) { $('pwNew').classList.add('bad'); $('pwNew').focus(); return toast('The password needs at least 8 characters', 'warn'); }
+  if ($('pwAgain').value !== pw) { $('pwAgain').classList.add('bad'); $('pwAgain').focus(); return toast('The passwords do not match', 'warn'); }
+  $('pwSave').disabled = true;
   const { error } = await sb.auth.updateUser({ password: pw, data: { has_password: true } });
+  $('pwSave').disabled = false;
+  if (!error) closeModal('pw');
   toast(error ? `Could not set the password: ${error.message}` : 'Password saved — sign in with it on any device', error ? 'warn' : 'ok');
 }
 async function startCloud(session) {
@@ -2062,6 +2087,8 @@ $('authLink').onclick = sendLink;
 $('authEmail').addEventListener('keydown', e => { $('authEmail').classList.remove('bad'); if (e.key === 'Enter') $('authPass').focus(); });
 $('authPass').addEventListener('keydown', e => { $('authPass').classList.remove('bad'); if (e.key === 'Enter') signInWithPassword(); });
 $('authOut').onclick = signOut;
+$('pwSave').onclick = savePassword;
+['pwNew', 'pwAgain'].forEach(k => $(k).addEventListener('keydown', e => { $(k).classList.remove('bad'); if (e.key === 'Enter') k === 'pwNew' ? $('pwAgain').focus() : savePassword(); }));
 $('scrim').onclick = closeDetail;
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
