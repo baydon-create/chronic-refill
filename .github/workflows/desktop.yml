@@ -1,11 +1,12 @@
 # Builds the ChronicRx Windows app and publishes it as the latest GitHub release.
-# The app loads the live dashboard, so it only needs rebuilding when desktop/ changes.
+# The app loads the live dashboard and carries a copy of index.html for PCs that block github.io,
+# so it is rebuilt when either changes.
 name: Windows app
 
 on:
   push:
     branches: [main]
-    paths: ['desktop/**', '.github/workflows/desktop.yml']
+    paths: ['desktop/**', 'index.html', '.github/workflows/desktop.yml']
   workflow_dispatch:
 
 permissions:
@@ -26,7 +27,7 @@ jobs:
         run: |
           npm ci
           npm version 1.0.${{ github.run_number }} --no-git-tag-version
-          npx electron-builder --win nsis portable --x64 --publish never
+          npm run dist -- --publish never
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: desktop-v1.0.${{ github.run_number }}
@@ -35,7 +36,7 @@ jobs:
           body: |
             **Install:** download `ChronicRx-Setup.exe` and open it. ChronicRx is added to the desktop and Start menu.
             **No install:** `ChronicRx-Portable.exe` runs directly, e.g. from a USB stick.
-            Dashboard updates arrive automatically; this download only changes when the desktop shell does.
+            Dashboard updates arrive automatically. Where github.io is blocked, the app opens the copy of the dashboard built into this version.
           files: |
             desktop/dist/ChronicRx-Setup.exe
             desktop/dist/ChronicRx-Portable.exe

@@ -1,5 +1,6 @@
 // ChronicRx for Windows: opens the live dashboard (GitHub Pages) in its own window, so every update
-// merged to main reaches the desktop app on the next start — no reinstall needed.
+// merged to main reaches the desktop app on the next start — no reinstall needed. Where github.io is blocked
+// or down, it opens the copy of the dashboard built into the app (app/, made by prepare.js) instead.
 const { app, BrowserWindow, Menu, shell } = require('electron');
 const path = require('path');
 
@@ -39,9 +40,8 @@ function createWindow() {
     webPreferences: { contextIsolation: true, sandbox: true, spellcheck: true },
   });
   win.once('ready-to-show', () => { win.maximize(); win.show(); });
-  // No internet: show a retry page instead of a blank window.
   win.webContents.on('did-fail-load', (_e, code, _desc, url, isMain) => {
-    if (isMain && code !== -3 && url.startsWith(APP_ORIGIN)) win.loadFile(path.join(__dirname, 'offline.html'));
+    if (isMain && code !== -3 && url.startsWith(APP_ORIGIN)) win.loadFile(path.join(__dirname, 'app', 'index.html'));
   });
   win.loadURL(APP_URL);
 }
