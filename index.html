@@ -6,6 +6,8 @@
 <meta name="theme-color" content="#0B1220">
 <title>ChronicRx — Refill Intelligence</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Crect width='36' height='36' rx='10' fill='%233a5bd9'/%3E%3Cg transform='rotate(-45 18 18)'%3E%3Crect x='7' y='13' width='22' height='10' rx='5' fill='none' stroke='white' stroke-width='2.4'/%3E%3Cpath d='M12 13h6v10h-6a5 5 0 0 1 0-10z' fill='%2334d399'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -561,6 +563,7 @@
           <button data-act="backup" role="menuitem"><i data-ic="save"></i><div>Download backup<div class="m-sub">All data including documents</div></div></button>
           <button data-act="restore" role="menuitem"><i data-ic="upload"></i><div>Restore from backup<div class="m-sub">Replaces the current data</div></div></button>
           <hr>
+          <button data-act="install" role="menuitem" id="installBtn" hidden><i data-ic="download"></i><div>Install as app<div class="m-sub">Desktop &amp; Start-menu shortcut, own window</div></div></button>
           <button data-act="cloudRefresh" role="menuitem"><i data-ic="repeat"></i><div>Refresh from cloud<div class="m-sub">Latest from every device and Telegram</div></div></button>
           <button data-act="setPassword" role="menuitem"><i data-ic="edit"></i><div>Set password<div class="m-sub">Sign in without waiting for an email</div></div></button>
           <button data-act="signOut" role="menuitem"><i data-ic="x"></i><div>Sign out<div class="m-sub" id="whoami">Not signed in</div></div></button>
@@ -2066,7 +2069,7 @@ document.addEventListener('click', e => {
   if (!el) return;
   const d = el.dataset;
   if (d.nav) { e.preventDefault(); closeDetail(); return navigate(d.nav); }
-  if (d.act) { toggleMenu(false); return ({ add: () => openForm(), export: exportCSV, backup, restore: () => $('restoreIn').click(), cloudRefresh: () => refreshFromCloud(true), setPassword, signOut })[d.act](); }
+  if (d.act) { toggleMenu(false); return ({ add: () => openForm(), export: exportCSV, backup, restore: () => $('restoreIn').click(), cloudRefresh: () => refreshFromCloud(true), setPassword, signOut, install })[d.act](); }
   if (d.call) return openCall(d.call);
   if (d.refill) return openRefill(d.refill);
   if (d.rf !== undefined) return openRefill(state.detailId, +d.rf);
@@ -2138,6 +2141,15 @@ let lastDay = todayISO(); setInterval(() => { if (todayISO() !== lastDay) { last
 // ═════════ INIT ═════════
 hydrate();
 if (sb) boot(); else { navigate('overview', false); showAuth('Could not load the sign-in service — check the internet connection and reload.', false); $('authGo').hidden = $('authLink').hidden = true; }
+// Installable app (Edge / Chrome: desktop + Start-menu shortcut, own window; phones: home-screen icon)
+if ('serviceWorker' in navigator && isSecureContext && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+let installEv = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEv = e; $('installBtn').hidden = false; });
+window.addEventListener('appinstalled', () => { installEv = null; $('installBtn').hidden = true; toast('ChronicRx installed · open it from the desktop or Start menu', 'ok'); });
+async function install() {
+  if (!installEv) return;
+  installEv.prompt(); await installEv.userChoice; installEv = null; $('installBtn').hidden = true;
+}
 // Phones suspend background tabs: catch up when the app comes back to the front.
 document.addEventListener('visibilitychange', () => {
   if (document.hidden || !cloud.ready) return;
