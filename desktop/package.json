@@ -1,0 +1,33 @@
+{
+  "name": "chronicrx-desktop",
+  "productName": "ChronicRx",
+  "version": "1.0.0",
+  "description": "ChronicRx refill dashboard for Windows",
+  "author": "Dr. Mohamed Baydon",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis portable --x64"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "com.baydon.chronicrx",
+    "productName": "ChronicRx",
+    "files": ["main.js", "offline.html", "build/icon.png"],
+    "directories": { "output": "dist" },
+    "win": { "icon": "build/icon.png" },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ChronicRx",
+      "artifactName": "ChronicRx-Setup.exe"
+    },
+    "portable": { "artifactName": "ChronicRx-Portable.exe" }
+  }
+}
