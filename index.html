@@ -344,6 +344,7 @@
   .kv dd { font-weight: 500; }
   .med { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: 10px; }
   .med + .med { margin-top: 8px; }
+  .med.rx-go { cursor: pointer; } .med.rx-go:hover { border-color: var(--brand); } .med.cur { border-color: var(--line); }
   .med .chip-ic { width: 32px; height: 32px; border-radius: 8px; }
   .med .chip-ic svg.ic { width: 16px; height: 16px; }
   .med-n { font-weight: 500; font-size: 14px; }
@@ -1082,6 +1083,13 @@ patients.forEach(normalise);
 // ═════════ STATE & ROUTING ═════════
 const state = { view: 'overview', filter: 'all', search: '', type: '', sort: 'urgency', horizon: 30, callDate: todayISO(), editId: null, detailId: null, callId: null, refillId: null, outcome: null, tempFiles: [] };
 const getP = id => patients.find(p => p.id === id);
+// A patient with more than one prescription has one record per prescription, each with its own dates and cycle:
+// the first keeps the plain Patient ID, the next ones are ID#2, ID#3 …
+const baseId = id => String(id).split('#')[0];
+const rxNo = id => +(String(id).split('#')[1]) || 1;
+const rxsOf = id => patients.filter(p => baseId(p.id) === baseId(id)).sort((a, b) => rxNo(a.id) - rxNo(b.id));
+const nextRxId = id => baseId(id) + '#' + (Math.max(1, ...rxsOf(id).map(p => rxNo(p.id))) + 1);
+const showId = id => rxNo(id) > 1 ? `${baseId(id)} · Rx ${rxNo(id)}` : String(id);
 const VIEWS = ['overview', 'patients', 'forecast', 'calls'];
 
 function navigate(target, scroll = true) {
@@ -1344,7 +1352,7 @@ function renderPatients() {
   $('ptBody').innerHTML = rows.map(p => {
     const st = status(p), cp = cycleProgress(p), id = esc(p.id);
     return `<tr class="row" data-open="${id}">
-      <td>${whoHTML(p, `${id} · ${phoneLink(p)}`)}</td>
+      <td>${whoHTML(p, `${esc(showId(p.id))} · ${phoneLink(p)}`)}</td>
       <td>${rxTag(p.rxtype)}<div class="who-m" style="margin-top:4px;max-width:190px">${esc(p.condition) || plural(p.meds.length, 'medicine')}</div></td>
       <td class="cyc"><div class="cyc-bar"><span style="width:${cp.pct * 100}%;background:${st.col}"></span></div><div class="cyc-t"><span>Day ${cp.elapsed} of ${p.cycle}</span><span>${Math.round(cp.pct * 100)}%</span></div></td>
       <td><div class="nw" style="font-weight:500">${fmtDate(dueDate(p))}</div><div style="margin-top:4px"><span class="badge ${st.b}">${dueLabel(p)}</span></div></td>
@@ -1448,7 +1456,7 @@ function renderCalls() {
   $('clSub').textContent = `${plural(calls.length, 'call')} on ${fmtDate(day)}`;
   $('clBody').innerHTML = calls.length ? calls.map(({ p, l }) => { const m = outcomeMeta(l.outcome);
     return `<tr class="row" data-open="${esc(p.id)}">
-      <td>${whoHTML(p, `${esc(p.id)} · ${phoneLink(p)}`)}</td>
+      <td>${whoHTML(p, `${esc(showId(p.id))} · ${phoneLink(p)}`)}</td>
       <td><span class="contact"><span class="${m.t}">${ic(m.icon)}</span>${m.label}</span></td>
       <td class="sm" style="max-width:360px">${l.note ? esc(l.note) : '<span class="muted">No note</span>'}</td>
       <td class="nw">${l.next ? fmtDate(l.next) : '<span class="muted">—</span>'}</td>
@@ -1456,7 +1464,7 @@ function renderCalls() {
     : `<tr><td colspan="5">${emptyHTML('headset', 'No calls on this day', 'Calls you log from the queue or patient list appear here.')}</td></tr>`;
   $('cbBody').innerHTML = cbs.length ? cbs.map(p => { const l = lastLog(p), m = outcomeMeta(l.outcome), st = status(p), late = diffDays(l.next, day);
     return `<tr class="row" data-open="${esc(p.id)}">
-      <td>${whoHTML(p, `${esc(p.id)} · ${phoneLink(p)}`)}</td>
+      <td>${whoHTML(p, `${esc(showId(p.id))} · ${phoneLink(p)}`)}</td>
       <td class="nw"><div style="font-weight:500">${fmtDate(l.next)}</div>${late > 0 ? `<div class="who-m t-red">${plural(late, 'day')} late</div>` : '<div class="who-m">On time</div>'}</td>
       <td><span class="contact"><span class="${m.t}">${ic(m.icon)}</span>${m.short}</span><div class="who-m">${fmtShort(l.date)}</div></td>
       <td><span class="badge ${st.b}">${dueLabel(p)}</span></td>
@@ -1471,7 +1479,7 @@ function openDetail(id) {
   const st = status(p), r = revenue(p), cp = cycleProgress(p);
   $('drHead').innerHTML = `
     <div class="dr-top">
-      <div class="dr-id">${avatar(p)}<div style="min-width:0"><div class="dr-name">${esc(p.name)}</div><div class="dr-meta">${esc(p.id)} · <a href="tel:${tel(p.phone)}">${esc(p.phone)}</a></div></div></div>
+      <div class="dr-id">${avatar(p)}<div style="min-width:0"><div class="dr-name">${esc(p.name)}</div><div class="dr-meta">${esc(showId(p.id))} · <a href="tel:${tel(p.phone)}">${esc(p.phone)}</a></div></div></div>
       <button class="dr-close" id="drClose" aria-label="Close">${ic('x')}</button>
     </div>
     <div class="dr-cycle">
@@ -1494,7 +1502,8 @@ function openDetail(id) {
     const m = outcomeMeta(e.l.outcome);
     return `<div class="tl"><span class="dot ${m.x}">${ic(m.icon)}</span><div class="tl-h">${m.label} <span>· ${fmtDate(e.date)}</span></div>${e.l.note ? `<div class="tl-b">${esc(e.l.note)}</div>` : ''}${e.l.next ? `<div class="tl-b muted">Follow-up ${fmtDate(e.l.next)}</div>` : ''}</div>`;
   }).join('') : '<div class="muted sm">No calls or refills recorded yet</div>';
-  const lost = isLost(p) && lastLog(p);
+  const lost = isLost(p) && lastLog(p), rxs = rxsOf(p.id);
+  const rxHTML = rxs.map(x => `<div class="med${x === p ? ' cur' : ' rx-go'}"${x === p ? '' : ` data-open="${esc(x.id)}"`}><span class="chip-ic x-brand">${ic('file')}</span><div style="min-width:0;flex:1"><div class="med-n">Prescription ${rxNo(x.id)}${x === p ? ' · <span class="muted">this one</span>' : ''}</div><div class="med-q">Last dispense ${fmtDate(x.lastDate)} · next refill ${fmtDate(dueDate(x))} · ${plural(x.meds.length, 'medicine')}</div></div><span class="badge ${status(x).b}">${dueLabel(x)}</span></div>`).join('');
   $('drBody').innerHTML = `
     ${lost ? `<div class="lost-box"><span><b>Lost</b> since ${fmtDate(lost.date)}${lost.note ? ` · ${esc(lost.note)}` : ''}. Not in any queue or forecast; history kept.</span><button class="btn btn-sm" data-dr="reactivate">${ic('repeat')}Reactivate</button></div>` : ''}
     <div class="dr-sec"><div class="dr-sec-t">Revenue per refill</div>
@@ -1510,6 +1519,7 @@ function openDetail(id) {
       <dt>Insurance</dt><dd>${esc(p.insurance) || '—'}</dd>
       <dt>Hospital / clinic</dt><dd>${esc(p.hospital) || '—'}</dd>
     </dl></div>
+    <div class="dr-sec"><div class="dr-sec-t">Prescriptions · ${rxs.length}</div>${rxHTML}<button class="btn btn-sm" data-dr="addRx" style="margin-top:10px">${ic('plus')}Add another prescription</button></div>
     <div class="dr-sec"><div class="dr-sec-t">Medicines · ${p.meds.length}</div>${meds}</div>
     ${p.notes ? `<div class="dr-sec"><div class="dr-sec-t">Notes</div><div style="white-space:pre-wrap;font-size:14px;color:var(--text-2)">${esc(p.notes)}</div></div>` : ''}
     <div class="dr-sec"><div class="dr-sec-t">Documents</div>${docHTML}</div>
@@ -1534,7 +1544,7 @@ function viewFile(pid, i) {
 const openModal = id => $(id).classList.add('open');
 const closeModal = id => $(id).classList.remove('open');
 function openForm(id = null) {
-  state.editId = id;
+  state.editId = id; $('f_id').readOnly = false;
   const p = id ? getP(id) : null;
   $('pmT').textContent = p ? 'Edit patient' : 'New patient';
   $('pmDel').hidden = !p;
@@ -1582,10 +1592,13 @@ const dupeOf = id => id && id !== state.editId ? getP(id) : null;
 function checkId() {
   const p = dupeOf($('f_id').value.trim()), box = $('f_dupe');
   if (!p) { box.hidden = true; return null; }
+  if (!box.hidden && box.dataset.id === p.id) return p; // redrawing on blur would swallow a click on its buttons
+  box.dataset.id = p.id;
   box.innerHTML = `<span>⚠️ Patient ID <b>${esc(p.id)}</b> is already registered: <b>${esc(p.name)}</b> · ${esc(p.phone)} · next refill ${fmtDate(dueDate(p))}.</span>`
-    + (state.editId ? '<span>Use a different ID.</span>' : '<button type="button" class="btn btn-sm btn-brand" id="f_dupeGo">Open existing file</button>');
+    + (state.editId ? '<span>Use a different ID.</span>' : '<span style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-sm btn-brand" id="f_dupeRx">Add another prescription</button><button type="button" class="btn btn-sm" id="f_dupeGo">Open existing file</button></span>');
   box.hidden = false;
   if ($('f_dupeGo')) $('f_dupeGo').onclick = () => openExisting(p.id);
+  if ($('f_dupeRx')) $('f_dupeRx').onclick = () => openExisting(p.id, true);
   return p;
 }
 // Looks the ID up in the cloud too, in case another device added it moments ago.
@@ -1594,15 +1607,35 @@ async function checkIdInCloud(id) {
   try { const { data } = await withTimeout(sb.from('patients').select('*').eq('id', id).maybeSingle(), 8000); if (data) { applyRemote(data); cacheLocally(); softRender(); } } catch (e) {}
   return checkId();
 }
-// Leaves the new-patient form for the existing file, bringing along medicines and attachments already entered.
-function openExisting(id) {
+// Leaves the new-patient form for the existing file (or a new prescription for that patient), bringing along
+// medicines and attachments already entered.
+function openExisting(id, asRx = false) {
   const newDocs = state.tempFiles.filter(f => !f.path), newMeds = readMeds();
-  closeModal('pm'); openForm(id);
+  closeModal('pm'); asRx ? openNewRx(id) : openForm(id);
+  if (asRx) {
+    if (newMeds.length) { $('medRows').innerHTML = ''; newMeds.forEach(addMedRow); }
+    if (newDocs.length) { state.tempFiles.push(...newDocs); renderTempFiles(); }
+    return;
+  }
   const p = getP(id), have = new Set(p.meds.map(m => String(m.name).toLowerCase()));
   const addMeds = newMeds.filter(m => !have.has(m.name.toLowerCase()));
   if (addMeds.length) { document.querySelectorAll('#medRows .med-row').forEach(r => { if (!r.querySelector('input').value.trim()) r.remove(); }); addMeds.forEach(addMedRow); }
   if (newDocs.length) { state.tempFiles.push(...newDocs); renderTempFiles(); }
   toast(addMeds.length || newDocs.length ? `Opened ${p.name}'s file with your new medicines and attachments added. Review and save.` : `Opened ${p.name}'s existing file. Update it and save.`, 'ok');
+}
+// A further prescription for an existing patient: a new record under ID#n with the patient's details filled in.
+function openNewRx(id) {
+  const p = getP(id); if (!p) return;
+  closeDetail(); openForm();
+  const n = nextRxId(id);
+  $('pmT').textContent = `New prescription · ${p.name}`;
+  ['name', 'phone', 'insurance', 'condition', 'hospital'].forEach(k => $('f_' + k).value = p[k] || '');
+  $('f_id').value = n; $('f_id').readOnly = true;
+  const cyc = String(p.cycle);
+  if (![...$('f_cycle').options].some(o => o.value === cyc)) $('f_cycle').add(new Option(`${cyc} days`, cyc));
+  $('f_cycle').value = cyc; calcForm();
+  toast(`Prescription ${rxNo(n)} for ${p.name}: enter its dispense date, cycle and medicines`, 'ok');
+  setTimeout(() => $('f_lastDate').focus(), 80);
 }
 async function saveForm() {
   const name = $('f_name').value.trim(), phone = $('f_phone').value.trim(), lastDate = $('f_lastDate').value;
@@ -1616,7 +1649,7 @@ async function saveForm() {
   if (lastDate > todayISO()) { $('f_lastDate').classList.add('bad'); return toast('Last dispense date cannot be in the future', 'warn'); }
   if (num($('f_lastRev').value) < 0 || num($('f_fullRev').value) < 0) return toast('Values cannot be negative', 'warn');
   const prevDocs = old ? files[old.id] || [] : [];
-  const twin = patients.find(x => x !== old && personKey(x) === personKey({ name, phone }));
+  const twin = patients.find(x => x !== old && baseId(x.id) !== baseId(id) && personKey(x) === personKey({ name, phone }));
   if (twin) { $('f_phone').classList.add('bad'); return toast(`${twin.name} (${twin.id}) already has this name and phone`, 'warn'); }
   const rec = normalise({ ...(old || { logs: [], refills: [] }), id, name, phone,
     insurance: $('f_insurance').value.trim(), condition: $('f_condition').value.trim(), hospital: $('f_hospital').value.trim(),
@@ -1624,12 +1657,13 @@ async function saveForm() {
     lastRev: num($('f_lastRev').value), fullRev: num($('f_fullRev').value), meds: readMeds(), notes: $('f_notes').value.trim() });
   if (old) { patients[patients.indexOf(old)] = rec; if (old.id !== id) delete files[old.id]; if (state.detailId === old.id) state.detailId = id; }
   else patients.push(rec);
+  rxsOf(id).forEach(x => { if (x !== rec) { x.name = name; x.phone = phone; } }); // the same person on every prescription
   if (state.tempFiles.length) files[id] = state.tempFiles; else delete files[id];
   const kept = new Set(state.tempFiles.map(f => f.path).filter(Boolean));
   deleteDocs(prevDocs.map(f => f.path).filter(p => p && !kept.has(p)));
   persist(); persistFiles(); closeModal('pm');
   moveDocsToCloud(id);
-  toast(old ? 'Patient updated' : `${name} added`, 'ok'); render(); if (state.detailId) refreshDetail();
+  toast(old ? 'Patient updated' : rxNo(id) > 1 ? `Prescription ${rxNo(id)} added for ${name}` : `${name} added`, 'ok'); render(); if (state.detailId) refreshDetail();
 }
 function handleFiles(list) {
   [...list].forEach(async file => {
@@ -2079,7 +2113,7 @@ document.addEventListener('click', e => {
   if (d.rmfile) { state.tempFiles.splice(+d.rmfile, 1); return renderTempFiles(); }
   if (d.view) return viewFile(state.detailId, +d.view);
   if (d.h) { state.horizon = +d.h; return renderForecast(); }
-  if (d.dr) { const id = state.detailId; return ({ call: openCall, refill: openRefill, edit: openForm, delete: confirmDelete, reactivate })[d.dr](id); }
+  if (d.dr) { const id = state.detailId; return ({ call: openCall, refill: openRefill, edit: openForm, delete: confirmDelete, reactivate, addRx: openNewRx })[d.dr](id); }
   if (d.stop !== undefined) return;
   if (d.open) return openDetail(d.open);
 });
