@@ -310,6 +310,23 @@
   .f-item p { font-size: 13.5px; color: var(--text-2); margin-top: 6px; }
   .f-item code { font-family: inherit; font-size: 13px; color: var(--brand-t); background: var(--brand-s); padding: 1px 6px; border-radius: 5px; }
 
+  /* ═════════ REPORTS ═════════ */
+  .g-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rp-tools { border-bottom: 0; }
+  .rp-tools .rng { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-3); }
+  .rp-tools input[type=date] { height: 38px; border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0 10px; font-size: 14px; background: #fff; outline: none; min-width: 0; }
+  .rp-tools input[type=date]:focus { border-color: var(--brand); box-shadow: 0 0 0 4px rgba(58,91,217,.12); }
+  .rp-sec { display: flex; align-items: baseline; gap: 10px; margin: 26px 0 12px; }
+  .rp-sec .lbl-sm { margin: 0; }
+  .rp-sec span { font-size: 13px; color: var(--text-3); }
+  .rp-note { padding: 12px 22px 16px; font-size: 12.5px; color: var(--text-3); border-top: 1px solid var(--line-2); }
+  .days { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .days button { height: 44px; border: 1px solid var(--line); border-radius: 10px; font-weight: 600; font-size: 15px; color: var(--text-2); display: flex; align-items: baseline; justify-content: center; gap: 4px; transition: all .15s; }
+  .days button span { font-size: 12px; font-weight: 400; color: var(--text-3); }
+  .days button:hover { border-color: #C9CFDA; }
+  .days button.on { border-color: var(--brand); background: var(--brand-s); color: var(--brand-t); box-shadow: 0 0 0 1px var(--brand); }
+  .days button.on span { color: var(--brand-t); }
+
   /* ═════════ DRAWER ═════════ */
   .scrim { position: fixed; inset: 0; background: rgba(11,18,32,.4); backdrop-filter: blur(2px); z-index: 140; opacity: 0; pointer-events: none; transition: opacity .2s; }
   .scrim.open { opacity: 1; pointer-events: auto; }
@@ -476,7 +493,13 @@
     .kpi .chip-ic { width: 30px; height: 30px; }
     .kpi .chip-ic svg.ic { width: 16px; height: 16px; }
     .kpi-l, .kpi-f { font-size: 12.5px; }
-    .g-3, .f-grid { grid-template-columns: minmax(0, 1fr); }
+    .g-3, .g-2, .f-grid { grid-template-columns: minmax(0, 1fr); }
+    .rp-tools .rng { flex: 1 1 100%; }
+    .rp-tools .rng input { flex: 1; }
+    .rp-tools .sel { flex: 1 1 100%; }
+    .rp-tools .tools-end { margin-left: 0; width: 100%; }
+    .rp-tools .tools-end .btn { flex: 1; }
+    .rp-sec { margin: 18px 0 10px; }
     .tbl-wrap.patients { display: none; }
     .cards { display: block; }
     .search { max-width: none; min-width: 100%; }
@@ -548,6 +571,7 @@
       <a href="#patients" class="tab" data-nav="patients:all"><i data-ic="users"></i>Patients<span class="pip" data-pip="urgent" hidden></span></a>
       <a href="#forecast" class="tab" data-nav="forecast"><i data-ic="trend"></i><span>Revenue<span class="long"> forecast</span></span></a>
       <a href="#calls" class="tab" data-nav="calls"><i data-ic="headset"></i>Call center</a>
+      <a href="#reports" class="tab" data-nav="reports"><i data-ic="bars"></i>Reports</a>
     </nav>
 
     <div class="nav-right">
@@ -740,6 +764,125 @@
         </div>
       </div>
     </section>
+
+    <!-- REPORTS -->
+    <section id="v-reports" hidden>
+      <div class="card">
+        <div class="tools rp-tools">
+          <span class="chip-ic x-brand" style="width:30px;height:30px"><i data-ic="filter"></i></span>
+          <label class="rng">From <input type="date" id="rpFrom" aria-label="Report start date"></label>
+          <label class="rng">To <input type="date" id="rpTo" aria-label="Report end date"></label>
+          <select class="sel" id="rpType" aria-label="Dispense type">
+            <option value="">All dispense types</option>
+            <option value="full">Full Rx</option>
+            <option value="partial">Partial Rx</option>
+            <option value="none">Hospital Rx copy</option>
+          </select>
+          <select class="sel" id="rpDays" aria-label="Days supplied">
+            <option value="">All days supplied</option>
+            <option value="27">27 days</option>
+            <option value="56">56 days</option>
+            <option value="84">84 days</option>
+            <option value="other">Other durations</option>
+          </select>
+          <select class="sel" id="rpIns" aria-label="Insurer"></select>
+          <div class="tools-end" style="display:flex;gap:8px">
+            <button class="btn" id="rpReset">Clear filters</button>
+            <button class="btn btn-brand" id="rpExport"><i data-ic="download"></i>Export CSV</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="rp-sec"><div class="lbl-sm">Revenue generated</div><span id="rpGenSub"></span></div>
+      <div class="grid g-4" id="rpGen"></div>
+      <div class="rp-sec"><div class="lbl-sm">Revenue lost &amp; at risk</div><span id="rpLossSub"></span></div>
+      <div class="grid g-4" id="rpLoss"></div>
+
+      <div class="grid g-main mt">
+        <div class="card">
+          <div class="card-h b">
+            <div><div class="card-t">Revenue dispensed</div><div class="card-s" id="rpTrendSub"></div></div>
+            <div class="legend"><span><i style="background:var(--c-base)"></i>After a follow-up call</span><span><i style="background:#B9C5F2"></i>Without a call</span></div>
+          </div>
+          <div class="chart-box" id="rpTrendWrap" style="padding-top:18px">
+            <svg class="chart" id="rpTrend" role="img" aria-label="Revenue dispensed by period"></svg>
+            <div class="tip" id="rpTrendTip"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h b"><div><div class="card-t">Follow-up effectiveness</div><div class="card-s">Calls logged in the period</div></div></div>
+          <div class="card-b" style="padding-top:18px" id="rpCalls"></div>
+        </div>
+      </div>
+
+      <div class="card mt">
+        <div class="card-h b">
+          <div><div class="card-t">Revenue lost &amp; at risk</div><div class="card-s" id="rpLeakSub"></div></div>
+          <div class="legend"><span><i style="background:#D9573A"></i>Lost to other pharmacies</span><span><i style="background:#F5A55B"></i>Overdue, not refilled</span><span><i style="background:var(--c-up)"></i>Unconverted upsell</span></div>
+        </div>
+        <div class="chart-box" id="rpLeakWrap" style="padding-top:18px">
+          <svg class="chart sm" id="rpLeak" role="img" aria-label="Revenue lost by period"></svg>
+          <div class="tip" id="rpLeakTip"></div>
+        </div>
+      </div>
+
+      <div class="grid g-2 mt">
+        <div class="card">
+          <div class="card-h b"><div><div class="card-t">By dispense type</div><div class="card-s">Refills dispensed in the period</div></div></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Dispense type</th><th class="r">Refills</th><th class="r">Revenue</th><th class="r">Avg</th><th class="r">Follow-up</th><th class="r">Upsell gap</th></tr></thead>
+            <tbody id="rpByType"></tbody>
+          </table></div>
+        </div>
+        <div class="card">
+          <div class="card-h b"><div><div class="card-t">By days supplied</div><div class="card-s">How long each dispense was meant to last</div></div></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Days supplied</th><th class="r">Refills</th><th class="r">Revenue</th><th class="r">Avg</th><th class="r">On time</th><th class="r">Avg late</th></tr></thead>
+            <tbody id="rpByDays"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div class="card mt">
+        <div class="card-h b"><div><div class="card-t">By insurer</div><div class="card-s">Revenue generated and lost per insurance company</div></div></div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Insurer</th><th class="r">Active patients</th><th class="r">Refills</th><th class="r">Revenue</th><th class="r">Via follow-up</th><th class="r">Lost patients</th><th class="r">Lost & at risk</th></tr></thead>
+          <tbody id="rpByIns"></tbody>
+        </table></div>
+      </div>
+
+      <div class="card mt">
+        <div class="card-h b"><div><div class="card-t">Where the money went</div><div class="card-s">Patients lost or still overdue in the period, largest first</div></div></div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Patient</th><th>Reason</th><th>Date</th><th>Insurer</th><th class="r">Per refill</th><th class="r">Per year</th><th class="r" aria-label="Actions"></th></tr></thead>
+          <tbody id="rpLeakList"></tbody>
+        </table></div>
+        <div class="rp-note" id="rpLeakMore" hidden></div>
+      </div>
+
+      <div class="card mt">
+        <details class="formulas">
+          <summary class="card-h">
+            <div style="display:flex;gap:14px;align-items:center">
+              <span class="chip-ic x-brand"><i data-ic="sigma"></i></span>
+              <div><div class="card-t">How the report is calculated</div><div class="card-s">Definitions behind every figure on this page</div></div>
+            </div>
+            <i data-ic="chevDown" class="chev"></i>
+          </summary>
+          <div class="f-grid">
+            <div class="f-item"><h4>Revenue dispensed</h4><p><code>Σ Amount</code> of every refill recorded with a dispense date inside the period.</p></div>
+            <div class="f-item"><h4>Via follow-up</h4><p>A refill counts when a call was logged in the <b>14 days</b> before it, after the previous dispense.</p></div>
+            <div class="f-item"><h4>Recovered overdue</h4><p>Follow-up refills dispensed more than <b>3 days</b> after their due date (<code>Previous dispense + Days supplied</code>).</p></div>
+            <div class="f-item"><h4>Upsell converted</h4><p>A Full Rx refill after a Partial or Hospital copy: <code>Amount − Previous amount</code>.</p></div>
+            <div class="f-item"><h4>Lost to other pharmacies</h4><p>Patients marked lost in the period: <code>Σ Baseline per refill</code>. Per year: <code>Baseline × 365 ÷ Cycle</code>.</p></div>
+            <div class="f-item"><h4>Overdue, not refilled</h4><p>Active patients whose due date fell in the period and who have not refilled yet: <code>Σ Baseline</code>.</p></div>
+            <div class="f-item"><h4>Unconverted upsell</h4><p>Partial or Hospital copy refills in the period: <code>Σ (Full Rx value − Amount)</code>.</p></div>
+            <div class="f-item"><h4>Refill capture rate</h4><p><code>Refills due in period ÷ (those + overdue not refilled + lost)</code>.</p></div>
+            <div class="f-item"><h4>Call conversion</h4><p><code>"Patient coming" ÷ All calls</code>. <b>Coming → refilled</b>: share of those followed by a refill within 14 days.</p></div>
+          </div>
+        </details>
+      </div>
+    </section>
   </div>
 </main>
 
@@ -758,6 +901,7 @@
   <button data-nav="patients:all"><i data-ic="users"></i>Patients<span class="pip" data-pip="urgent" hidden></span></button>
   <button data-nav="forecast"><i data-ic="trend"></i>Forecast</button>
   <button data-nav="calls"><i data-ic="headset"></i>Calls</button>
+  <button data-nav="reports"><i data-ic="bars"></i>Reports</button>
 </nav>
 <button class="fab" data-act="add" aria-label="New patient"><i data-ic="plus"></i></button>
 
@@ -872,6 +1016,14 @@
         <div class="field"><label for="rmDate">Dispense date</label><input class="in" id="rmDate" type="date"></div>
         <div class="field"><label for="rmAmt">Amount dispensed (SAR)</label><input class="in" id="rmAmt" type="number" min="0" step="0.01"></div>
       </div>
+      <div class="field" style="margin-top:14px"><span class="lbl" id="rmDaysL">Days supplied</span>
+        <div class="days" id="rmDays" role="group" aria-labelledby="rmDaysL">
+          <button type="button" data-days="27">27<span>days</span></button>
+          <button type="button" data-days="56">56<span>days</span></button>
+          <button type="button" data-days="84">84<span>days</span></button>
+          <button type="button" data-days="">Other</button>
+        </div>
+        <input class="in" id="rmDaysN" type="number" min="1" max="365" step="1" placeholder="Number of days supplied" aria-label="Number of days supplied" hidden></div>
       <div class="field" style="margin-top:14px"><label for="rmType">Dispense type</label>
         <select class="sel" id="rmType"><option value="full">Full Rx — by us</option><option value="partial">Partial Rx — part by us</option><option value="none">Hospital Rx copy held</option></select></div>
       <div class="hint" id="rmHint" style="margin-top:12px"></div>
@@ -981,6 +1133,8 @@ const ICONS = {
   sigma: '<path d="M18 7V4H6l6 8-6 8h12v-3"/>',
   userX: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="22" y2="13"/><line x1="22" y1="8" x2="17" y2="13"/>',
   send: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
+  bars: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/>',
+  filter: '<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>',
 };
 const ic = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ''}</svg>`;
 function hydrate(root = document) {
@@ -1080,9 +1234,9 @@ const FILTERS = {
 patients.forEach(normalise);
 
 // ═════════ STATE & ROUTING ═════════
-const state = { view: 'overview', filter: 'all', search: '', type: '', sort: 'urgency', horizon: 30, callDate: todayISO(), editId: null, detailId: null, callId: null, refillId: null, outcome: null, tempFiles: [] };
+const state = { view: 'overview', filter: 'all', search: '', type: '', sort: 'urgency', horizon: 30, callDate: todayISO(), rep: { preset: '30', from: '', to: '', type: '', days: '', ins: '' }, editId: null, detailId: null, callId: null, refillId: null, outcome: null, tempFiles: [] };
 const getP = id => patients.find(p => p.id === id);
-const VIEWS = ['overview', 'patients', 'forecast', 'calls'];
+const VIEWS = ['overview', 'patients', 'forecast', 'calls', 'reports'];
 
 function navigate(target, scroll = true) {
   let [view, filter] = String(target).split(':');
@@ -1099,7 +1253,7 @@ function navigate(target, scroll = true) {
 }
 function render() {
   renderCounts();
-  ({ overview: renderOverview, patients: renderPatients, forecast: renderForecast, calls: renderCalls })[state.view]();
+  ({ overview: renderOverview, patients: renderPatients, forecast: renderForecast, calls: renderCalls, reports: renderReports })[state.view]();
 }
 function counts() {
   const c = { all: patients.length };
@@ -1464,6 +1618,212 @@ function renderCalls() {
     : `<tr><td colspan="5">${emptyHTML('checkCircle', 'No call-backs due', 'Set a follow-up date when logging a call.')}</td></tr>`;
 }
 
+// ═════════ REPORTS ═════════
+const ATTR_DAYS = 14, GRACE = 3; // a call within 14 days before a refill earns it; up to 3 days after due is on time
+const fmtK = v => v >= 1000 ? fmtN(v / 1000, v % 1000 ? 1 : 0) + 'k' : fmtN(v);
+const daysKey = d => DAY_OPTS.includes(d) ? String(d) : 'other';
+const insName = p => String(p.insurance || '').trim();
+const yearly = p => revenue(p).base * 365 / p.cycle;
+const REP_PRESETS = [['30', '30 days'], ['90', '90 days'], ['month', 'This month'], ['last', 'Last month'], ['ytd', 'Year to date'], ['all', 'All time']];
+function repRange() {
+  const R = state.rep, t = todayISO(), d = parseISO(t);
+  if (R.preset === 'custom') { const a = parseISO(R.from) ? R.from : t, b = parseISO(R.to) ? R.to : t; return a <= b ? [a, b] : [b, a]; }
+  if (R.preset === '90') return [addDays(t, -89), t];
+  if (R.preset === 'month') return [toISO(new Date(d.getFullYear(), d.getMonth(), 1)), t];
+  if (R.preset === 'last') return [toISO(new Date(d.getFullYear(), d.getMonth() - 1, 1)), toISO(new Date(d.getFullYear(), d.getMonth(), 0))];
+  if (R.preset === 'ytd') return [toISO(new Date(d.getFullYear(), 0, 1)), t];
+  if (R.preset === 'all') {
+    let first = t; patients.forEach(p => { p.refills.forEach(f => { if (parseISO(f.date) && f.date < first) first = f.date; }); p.logs.forEach(l => { if (parseISO(l.date) && l.date < first) first = l.date; }); });
+    return [first, t];
+  }
+  return [addDays(t, -29), t];
+}
+// Each refill with what it is measured against: the dispense before it, its due date, and the call that preceded it.
+function refillEvents(p) {
+  const rs = p.refills.filter(f => parseISO(f.date)).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  return rs.map((f, i) => {
+    const b = i ? { date: rs[i - 1].date, days: parseInt(rs[i - 1].days) || p.cycle, rxtype: rs[i - 1].rxtype, amount: num(rs[i - 1].amount) }
+      : f.prev && parseISO(f.prev.lastDate) ? { date: f.prev.lastDate, days: parseInt(f.prev.cycle) || p.cycle, rxtype: f.prev.rxtype, amount: num(f.prev.lastRev) } : null;
+    const due = b ? addDays(b.date, b.days) : null, amount = num(f.amount), days = parseInt(f.days) || p.cycle;
+    const since = addDays(f.date, -ATTR_DAYS);
+    const call = p.logs.find(l => l.outcome !== 'back' && l.date <= f.date && l.date >= since && (!b || l.date > b.date));
+    const converted = f.rxtype === 'full' && b && b.rxtype && b.rxtype !== 'full';
+    return { p, date: f.date, amount, days, rxtype: f.rxtype || p.rxtype, due, late: due ? Math.max(0, diffDays(due, f.date)) : 0,
+      followed: !!call, upGain: converted ? Math.max(0, amount - b.amount) : 0,
+      gap: (f.rxtype || p.rxtype) !== 'full' && num(p.fullRev) > amount ? num(p.fullRev) - amount : 0 };
+  });
+}
+function buildReport() {
+  const R = state.rep, [from, to] = repRange(), t = todayISO(), inR = d => d >= from && d <= to;
+  const pts = patients.filter(p => !R.ins || (R.ins === '-' ? !insName(p) : insName(p) === R.ins));
+  const ptsT = pts.filter(p => (!R.type || p.rxtype === R.type) && (!R.days || daysKey(p.cycle) === R.days));
+  const refills = pts.flatMap(refillEvents).filter(e => inR(e.date) && (!R.type || e.rxtype === R.type) && (!R.days || daysKey(e.days) === R.days));
+  const calls = [], lost = [], back = new Set();
+  ptsT.forEach(p => p.logs.forEach(l => {
+    if (!inR(l.date)) return;
+    if (l.outcome === 'back') back.add(p.id); else calls.push({ p, l });
+    if (l.outcome === 'lost') lost.push({ p, date: l.date, value: revenue(p).base, year: yearly(p), note: l.note, still: isLost(p) && lastLog(p) === l });
+  }));
+  const overdue = ptsT.filter(p => !isLost(p) && dueDate(p) < t && inR(dueDate(p))).map(p => ({ p, date: dueDate(p), value: revenue(p).base, year: yearly(p), note: `${-daysToDue(p)} days overdue` }));
+  const sum = (a, f) => a.reduce((s, x) => s + f(x), 0);
+  const fu = refills.filter(e => e.followed), withDue = refills.filter(e => e.due), lateR = withDue.filter(e => e.late > GRACE);
+  const won = calls.filter(c => c.l.outcome === 'won');
+  const wonRefilled = won.filter(c => c.p.refills.some(f => f.date >= c.l.date && f.date <= addDays(c.l.date, ATTR_DAYS))).length;
+  const dueIn = refills.filter(e => e.due && inR(e.due)).length;
+  const r = {
+    from, to, pts, ptsT, refills, calls, lost, overdue, back: back.size,
+    revenue: sum(refills, e => e.amount), fuRev: sum(fu, e => e.amount), fuN: fu.length,
+    recovered: sum(fu.filter(e => e.late > GRACE), e => e.amount), recoveredN: fu.filter(e => e.late > GRACE).length,
+    upGain: sum(refills, e => e.upGain), upN: refills.filter(e => e.upGain > 0).length,
+    lostRev: sum(lost, x => x.value), lostYear: sum(lost, x => x.year), overdueRev: sum(overdue, x => x.value),
+    gap: sum(refills, e => e.gap), gapN: refills.filter(e => e.gap > 0).length,
+    onTime: withDue.length ? (withDue.length - lateR.length) / withDue.length : null,
+    avgLate: lateR.length ? sum(lateR, e => e.late) / lateR.length : 0,
+    capture: dueIn + overdue.length + lost.length ? dueIn / (dueIn + overdue.length + lost.length) : null,
+    won: won.length, wonRefilled, miss: calls.filter(c => c.l.outcome === 'miss').length, lostCalls: lost.length,
+    patientsServed: new Set(refills.map(e => e.p.id)).size,
+  };
+  r.no = calls.length - r.won - r.miss - r.lostCalls;
+  r.leak = r.lostRev + r.overdueRev + r.gap;
+  return r;
+}
+function repBuckets(from, to) {
+  const n = diffDays(from, to) + 1, unit = n <= 14 ? 'day' : n <= 120 ? 'week' : 'month', out = [];
+  const multiYear = from.slice(0, 4) !== to.slice(0, 4);
+  for (let s = from; s <= to;) {
+    const d = parseISO(s);
+    let e = unit === 'day' ? s : unit === 'week' ? addDays(s, 6) : toISO(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+    if (e > to) e = to;
+    out.push({ from: s, to: e, label: unit === 'month' ? fmtDate(s, multiYear ? { month: 'short', year: '2-digit' } : { month: 'short' }) : fmtShort(s) });
+    s = addDays(e, 1);
+  }
+  return { unit, out };
+}
+const pctTxt = v => v == null ? '—' : Math.round(v * 100) + '%';
+function renderReports() {
+  const R = state.rep, r = buildReport(), t = todayISO();
+  setHero('Reports', `${sar(r.revenue)} dispensed`,
+    `<strong>${fmtDate(r.from)}</strong> to <strong>${fmtDate(r.to)}</strong> · ${sar(r.fuRev)} came after a follow-up call · ${sar(r.leak)} lost or at risk.`,
+    `<div class="seg-dark" role="group" aria-label="Report period">${REP_PRESETS.map(([k, l]) => `<button data-rp="${k}" class="${R.preset === k ? 'active' : ''}">${l}</button>`).join('')}</div>`);
+  $('heroRight').querySelectorAll('[data-rp]').forEach(b => b.onclick = () => { R.preset = b.dataset.rp; renderReports(); });
+
+  $('rpFrom').value = r.from; $('rpTo').value = r.to; $('rpTo').max = $('rpFrom').max = t;
+  $('rpType').value = R.type; $('rpDays').value = R.days;
+  const ins = [...new Set(patients.map(insName).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  if (R.ins && R.ins !== '-' && !ins.includes(R.ins)) R.ins = '';
+  $('rpIns').innerHTML = `<option value="">All insurers</option>${ins.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('')}${patients.some(p => !insName(p)) ? '<option value="-">No insurer recorded</option>' : ''}`;
+  $('rpIns').value = R.ins;
+  $('rpReset').hidden = !(R.type || R.days || R.ins);
+
+  const share = (a, b) => b ? Math.round(a / b * 100) + '%' : '—';
+  $('rpGenSub').textContent = `${plural(r.refills.length, 'refill')} for ${plural(r.patientsServed, 'patient')}`;
+  $('rpGen').innerHTML = [
+    kpiCard({ icon: 'package', x: 'x-brand', label: 'Revenue dispensed', value: sarH(r.revenue), foot: r.refills.length ? `${plural(r.refills.length, 'refill')} · avg ${sar(r.revenue / r.refills.length)}` : 'No refills in period' }),
+    kpiCard({ icon: 'phone', x: 'x-green', label: 'Via follow-up calls', value: sarH(r.fuRev), tone: r.fuRev ? 't-green' : '', foot: `${share(r.fuRev, r.revenue)} of revenue · ${plural(r.fuN, 'refill')}` }),
+    kpiCard({ icon: 'repeat', x: 'x-violet', label: 'Recovered overdue', value: sarH(r.recovered), foot: r.recoveredN ? `${plural(r.recoveredN, 'late patient')} brought back` : 'No late refills recovered' }),
+    kpiCard({ icon: 'banknote', x: 'x-amber', label: 'Upsell converted', value: sarH(r.upGain), tone: r.upGain ? 't-amber' : '', foot: r.upN ? `${plural(r.upN, 'patient')} moved to Full Rx` : 'No conversions to Full Rx' }),
+  ].join('');
+  $('rpLossSub').textContent = `${sar(r.leak)} in total`;
+  $('rpLoss').innerHTML = [
+    kpiCard({ icon: 'userX', x: 'x-red', label: 'Lost to other pharmacies', value: sarH(r.lostRev), tone: r.lostRev ? 't-red' : '', foot: r.lost.length ? `${plural(r.lost.length, 'patient')} · ${sar(r.lostYear)} a year` : 'No patients lost' }),
+    kpiCard({ icon: 'alert', x: 'x-orange', label: 'Overdue, not refilled', value: sarH(r.overdueRev), tone: r.overdueRev ? 't-orange' : '', foot: r.overdue.length ? `${plural(r.overdue.length, 'patient')} still to recover` : 'Nobody overdue' }),
+    kpiCard({ icon: 'banknote', x: 'x-amber', label: 'Unconverted upsell', value: sarH(r.gap), foot: r.gapN ? `${plural(r.gapN, 'partial refill')} below full Rx` : 'Every refill was full' }),
+    kpiCard({ icon: 'percent', x: 'x-brand', label: 'Refill capture rate', value: pctTxt(r.capture), tone: r.capture != null && r.capture < .8 ? 't-red' : '', foot: r.back ? `${plural(r.back, 'patient')} won back` : 'Due refills actually dispensed' }),
+  ].join('');
+
+  const { unit, out } = repBuckets(r.from, r.to);
+  out.forEach(b => Object.assign(b, { fu: 0, other: 0, n: 0, lost: 0, over: 0, gap: 0 }));
+  const at = d => out.find(b => d >= b.from && d <= b.to);
+  r.refills.forEach(e => { const b = at(e.date); if (!b) return; b.n++; e.followed ? b.fu += e.amount : b.other += e.amount; b.gap += e.gap; });
+  r.lost.forEach(x => { const b = at(x.date); if (b) b.lost += x.value; });
+  r.overdue.forEach(x => { const b = at(x.date); if (b) b.over += x.value; });
+  const span = b => b.from === b.to ? fmtDate(b.from, { weekday: 'short', day: 'numeric', month: 'short' }) : `${fmtShort(b.from)} – ${fmtShort(b.to)}`;
+  $('rpTrendSub').textContent = `Per ${unit}${unit === 'week' ? ', labelled by week start' : ''}`;
+  barChart($('rpTrend'), $('rpTrendTip'), $('rpTrendWrap'), out.map(b => ({ label: b.label,
+    parts: [{ v: b.fu, color: 'var(--c-base)' }, { v: b.other, color: '#B9C5F2' }],
+    tip: `<b>${span(b)}</b><br><span class="mut">${plural(b.n, 'refill')}</span><br><span class="sw" style="background:var(--c-base)"></span>After a call ${sar(b.fu)}<br><span class="sw" style="background:#B9C5F2"></span>Without a call ${sar(b.other)}<br><b>Total ${sar(b.fu + b.other)}</b>` })),
+    { height: 280, fmtY: fmtK });
+  $('rpLeakSub').textContent = `${sar(r.leak)} · lost and overdue by the date it happened, unconverted upsell by refill date`;
+  barChart($('rpLeak'), $('rpLeakTip'), $('rpLeakWrap'), out.map(b => ({ label: b.label,
+    parts: [{ v: b.lost, color: '#D9573A' }, { v: b.over, color: '#F5A55B' }, { v: b.gap, color: 'var(--c-up)' }],
+    tip: `<b>${span(b)}</b><br><span class="sw" style="background:#D9573A"></span>Lost ${sar(b.lost)}<br><span class="sw" style="background:#F5A55B"></span>Overdue ${sar(b.over)}<br><span class="sw" style="background:var(--c-up)"></span>Unconverted ${sar(b.gap)}<br><b>Total ${sar(b.lost + b.over + b.gap)}</b>` })),
+    { height: 210, fmtY: fmtK });
+
+  const nC = r.calls.length;
+  $('rpCalls').innerHTML = `<div class="perf">
+    <div class="ring">${ringSVG(nC ? r.won / nC : 0, 'var(--brand)', 54, 10)}<div class="c"><div><b>${nC ? Math.round(r.won / nC * 100) + '%' : '—'}</b><span>conversion</span></div></div></div>
+    <div class="perf-list">
+      <div><span class="chip-ic x-brand">${ic('phone')}</span>Calls made<b>${nC}</b></div>
+      <div><span class="chip-ic x-green">${ic('checkCircle')}</span>Patient coming<b>${r.won}</b></div>
+      <div><span class="chip-ic x-violet">${ic('calendar')}</span>Rescheduled<b>${r.miss}</b></div>
+      <div><span class="chip-ic x-red">${ic('phoneOff')}</span>No answer<b>${r.no}</b></div>
+      <div><span class="chip-ic x-gray">${ic('userX')}</span>Lost<b>${r.lostCalls}</b></div>
+    </div></div>
+    <div class="lbl-sm" style="margin-top:18px">Outcomes</div>
+    <dl class="kv">
+      <dt>Coming → refilled</dt><dd>${r.won ? `${share(r.wonRefilled, r.won)} <span class="muted">(${r.wonRefilled} of ${r.won})</span>` : '—'}</dd>
+      <dt>Revenue per call</dt><dd>${nC ? sar(r.fuRev / nC) : '—'}</dd>
+      <dt>Refills on time</dt><dd>${pctTxt(r.onTime)}${r.avgLate ? ` <span class="muted">· late ones avg ${Math.round(r.avgLate)} days</span>` : ''}</dd>
+      <dt>Patients won back</dt><dd>${r.back}</dd>
+    </dl>`;
+
+  const tot = (label, rows) => `<tr style="background:var(--surface-2)"><td><b>${label}</b></td>${rows.map(v => `<td class="r nw"><b>${v}</b></td>`).join('')}</tr>`;
+  const group = (keyOf, keys) => keys.map(k => { const es = r.refills.filter(e => keyOf(e) === k), rev = es.reduce((a, e) => a + e.amount, 0);
+    return { k, es, rev, fu: es.filter(e => e.followed).reduce((a, e) => a + e.amount, 0) }; });
+  const byT = group(e => e.rxtype, ['full', 'partial', 'none']);
+  $('rpByType').innerHTML = byT.map(g => `<tr><td>${rxTag(g.k)}</td><td class="r">${g.es.length}</td><td class="r nw">${sar(g.rev)}</td><td class="r nw">${g.es.length ? sar(g.rev / g.es.length) : '—'}</td><td class="r">${share(g.fu, g.rev)}</td><td class="r nw t-amber">${g.k === 'full' ? '—' : sar(g.es.reduce((a, e) => a + e.gap, 0))}</td></tr>`).join('')
+    + tot('Total', [r.refills.length, sar(r.revenue), r.refills.length ? sar(r.revenue / r.refills.length) : '—', share(r.fuRev, r.revenue), sar(r.gap)]);
+  const byD = group(e => daysKey(e.days), ['27', '56', '84', 'other']).filter(g => g.es.length || g.k !== 'other');
+  $('rpByDays').innerHTML = byD.map(g => { const wd = g.es.filter(e => e.due), lt = wd.filter(e => e.late > GRACE);
+    return `<tr><td>${g.k === 'other' ? 'Other' : g.k + ' days'}</td><td class="r">${g.es.length}</td><td class="r nw">${sar(g.rev)}</td><td class="r nw">${g.es.length ? sar(g.rev / g.es.length) : '—'}</td><td class="r">${wd.length ? Math.round((wd.length - lt.length) / wd.length * 100) + '%' : '—'}</td><td class="r nw">${lt.length ? Math.round(lt.reduce((a, e) => a + e.late, 0) / lt.length) + ' days' : '—'}</td></tr>`; }).join('')
+    + tot('Total', [r.refills.length, sar(r.revenue), r.refills.length ? sar(r.revenue / r.refills.length) : '—', pctTxt(r.onTime), r.avgLate ? Math.round(r.avgLate) + ' days' : '—']);
+
+  const insKeys = [...new Set(r.ptsT.map(insName).concat(r.refills.map(e => insName(e.p))))];
+  const byI = insKeys.map(k => { const es = r.refills.filter(e => insName(e.p) === k), lo = r.lost.filter(x => insName(x.p) === k), ov = r.overdue.filter(x => insName(x.p) === k);
+    return { k, act: r.ptsT.filter(p => insName(p) === k && !isLost(p)).length, n: es.length, rev: es.reduce((a, e) => a + e.amount, 0), fu: es.filter(e => e.followed).reduce((a, e) => a + e.amount, 0),
+      lost: lo.length, leak: lo.reduce((a, x) => a + x.value, 0) + ov.reduce((a, x) => a + x.value, 0) + es.reduce((a, e) => a + e.gap, 0) }; })
+    .sort((a, b) => b.rev - a.rev || b.leak - a.leak);
+  $('rpByIns').innerHTML = byI.length ? byI.map(g => `<tr><td>${g.k ? esc(g.k) : '<span class="muted">Not recorded</span>'}</td><td class="r">${g.act}</td><td class="r">${g.n}</td><td class="r nw">${sar(g.rev)}</td><td class="r">${share(g.fu, g.rev)}</td><td class="r">${g.lost || '—'}</td><td class="r nw ${g.leak ? 't-red' : ''}">${g.leak ? sar(g.leak) : '—'}</td></tr>`).join('')
+    + tot('Total', [byI.reduce((a, g) => a + g.act, 0), r.refills.length, sar(r.revenue), share(r.fuRev, r.revenue), r.lost.length || '—', sar(r.leak)])
+    : `<tr><td colspan="7">${emptyHTML('users', 'No patients match', 'Change the filters to see insurers.')}</td></tr>`;
+
+  const leaks = [...r.lost.map(x => ({ ...x, kind: 'lost' })), ...r.overdue.map(x => ({ ...x, kind: 'over' }))].sort((a, b) => b.value - a.value);
+  $('rpLeakList').innerHTML = leaks.length ? leaks.slice(0, 15).map(x => { const id = esc(x.p.id);
+    return `<tr class="row" data-open="${id}">
+      <td>${whoHTML(x.p, `${id} · ${phoneLink(x.p)}`)}</td>
+      <td>${x.kind === 'lost' ? `<span class="badge b-lost">${x.still ? 'Lost' : 'Lost · since won back'}</span>` : `<span class="badge b-overdue">${esc(x.note)}</span>`}${x.kind === 'lost' && x.note ? `<div class="who-m" style="margin-top:4px;max-width:240px">${esc(x.note)}</div>` : ''}</td>
+      <td class="nw">${fmtDate(x.date)}</td>
+      <td>${esc(insName(x.p)) || '<span class="muted">—</span>'}</td>
+      <td class="r nw"><b>${sar(x.value)}</b></td>
+      <td class="r nw muted">${sar(x.year)}</td>
+      <td class="r"><div class="acts" data-stop>${x.kind === 'over' || x.still ? `<button class="ib call" data-call="${id}" title="Log call" aria-label="Log call to ${esc(x.p.name)}">${ic('phone')}</button>` : ''}</div></td></tr>`; }).join('')
+    : `<tr><td colspan="7">${emptyHTML('checkCircle', 'Nothing lost in this period', 'No patients were lost and nobody is overdue.')}</td></tr>`;
+  $('rpLeakMore').hidden = leaks.length <= 15;
+  $('rpLeakMore').textContent = `${leaks.length - 15} more not shown · export the CSV for the full list.`;
+}
+function exportReport() {
+  const r = buildReport(), R = state.rep, q = v => `"${String(v ?? '').replace(/"/g, '""')}"`, m = v => num(v).toFixed(2);
+  const filt = [R.type && rxName(R.type), R.days && (R.days === 'other' ? 'Other durations' : R.days + ' days'), R.ins && (R.ins === '-' ? 'No insurer' : R.ins)].filter(Boolean).join('; ') || 'None';
+  const lines = [
+    ['ChronicRx report'], ['Period', r.from, r.to], ['Filters', filt], [],
+    ['Metric', 'Value'],
+    ['Revenue dispensed (SAR)', m(r.revenue)], ['Refills', r.refills.length], ['Patients served', r.patientsServed],
+    ['Revenue via follow-up calls (SAR)', m(r.fuRev)], ['Recovered overdue (SAR)', m(r.recovered)], ['Upsell converted (SAR)', m(r.upGain)],
+    ['Lost to other pharmacies (SAR per refill)', m(r.lostRev)], ['Lost to other pharmacies (SAR per year)', m(r.lostYear)], ['Patients lost', r.lost.length],
+    ['Overdue, not refilled (SAR)', m(r.overdueRev)], ['Patients overdue', r.overdue.length], ['Unconverted upsell (SAR)', m(r.gap)], ['Total lost & at risk (SAR)', m(r.leak)],
+    ['Refill capture rate %', r.capture == null ? '' : Math.round(r.capture * 100)], ['Refills on time %', r.onTime == null ? '' : Math.round(r.onTime * 100)],
+    ['Calls made', r.calls.length], ['Patient coming', r.won], ['Rescheduled', r.miss], ['No answer', r.no], ['Call conversion %', r.calls.length ? Math.round(r.won / r.calls.length * 100) : ''],
+    ['Coming → refilled within 14 days', r.wonRefilled], [],
+    ['Refills'], ['Date', 'Patient ID', 'Name', 'Insurer', 'Dispense type', 'Days supplied', 'Amount (SAR)', 'Due date', 'Days late', 'Follow-up call before', 'Upsell converted (SAR)', 'Upsell gap (SAR)'],
+    ...r.refills.sort((a, b) => a.date.localeCompare(b.date)).map(e => [e.date, e.p.id, e.p.name, insName(e.p), rxName(e.rxtype), e.days, m(e.amount), e.due || '', e.due ? e.late : '', e.followed ? 'Yes' : 'No', m(e.upGain), m(e.gap)]),
+    [], ['Lost & overdue'], ['Patient ID', 'Name', 'Insurer', 'Reason', 'Date', 'Per refill (SAR)', 'Per year (SAR)', 'Note'],
+    ...r.lost.map(x => [x.p.id, x.p.name, insName(x.p), 'Lost', x.date, m(x.value), m(x.year), x.note]),
+    ...r.overdue.map(x => [x.p.id, x.p.name, insName(x.p), 'Overdue', x.date, m(x.value), m(x.year), x.note]),
+  ];
+  download(`ChronicRx_Report_${r.from}_to_${r.to}.csv`, '﻿' + lines.map(l => l.map(q).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
+  toast('Report exported to CSV', 'ok');
+}
+
 // ═════════ DRAWER ═════════
 function openDetail(id) {
   const p = getP(id); if (!p) return;
@@ -1490,7 +1850,7 @@ function openDetail(id) {
   const docHTML = docs.length ? docs.map((f, i) => `<div class="file link" data-view="${i}">${ic(f.type && f.type.includes('pdf') ? 'file' : 'image')}<span class="file-n">${esc(f.name)}</span>${ic('arrowRight')}</div>`).join('') : '<div class="muted sm">No documents uploaded</div>';
   const ev = [...p.logs.map(l => ({ date: l.date, l })), ...p.refills.map((f, i) => ({ date: f.date, f, i }))].sort((a, b) => String(b.date).localeCompare(String(a.date)));
   const tl = ev.length ? ev.map(e => {
-    if (e.f) return `<div class="tl"><span class="dot x-brand">${ic('package')}</span><div class="tl-h">Refill dispensed <span>· ${fmtDate(e.date)}</span><button class="ib sm" data-rf="${e.i}" title="Edit refill" aria-label="Edit refill">${ic('edit')}</button></div><div class="tl-b">${sar(e.f.amount, 2)} · ${rxName(e.f.rxtype)}</div></div>`;
+    if (e.f) return `<div class="tl"><span class="dot x-brand">${ic('package')}</span><div class="tl-h">Refill dispensed <span>· ${fmtDate(e.date)}</span><button class="ib sm" data-rf="${e.i}" title="Edit refill" aria-label="Edit refill">${ic('edit')}</button></div><div class="tl-b">${sar(e.f.amount, 2)}${e.f.days ? ` · ${e.f.days} days` : ''} · ${rxName(e.f.rxtype)}</div></div>`;
     const m = outcomeMeta(e.l.outcome);
     return `<div class="tl"><span class="dot ${m.x}">${ic(m.icon)}</span><div class="tl-h">${m.label} <span>· ${fmtDate(e.date)}</span></div>${e.l.note ? `<div class="tl-b">${esc(e.l.note)}</div>` : ''}${e.l.next ? `<div class="tl-b muted">Follow-up ${fmtDate(e.l.next)}</div>` : ''}</div>`;
   }).join('') : '<div class="muted sm">No calls or refills recorded yet</div>';
@@ -1689,12 +2049,20 @@ function openRefill(id, idx) {
   $('rmS').textContent = f ? `${p.name} · dispensed ${fmtDate(f.date)}` : `${p.name} · due ${fmtDate(dueDate(p))}`;
   if (f) { $('rmDate').value = f.date; $('rmAmt').value = num(f.amount).toFixed(2); $('rmType').value = f.rxtype || p.rxtype; }
   else { $('rmDate').value = todayISO(); $('rmAmt').value = r.est ? r.est.toFixed(2) : ''; $('rmType').value = r.upsell ? 'full' : p.rxtype; }
-  refillHint(); openModal('rm');
+  setRefillDays(f ? parseInt(f.days) || p.cycle : p.cycle); openModal('rm');
 }
+// Days supplied on this dispense, whatever the patient's earlier cycle was; it sets when the next refill is due.
+const DAY_OPTS = [27, 56, 84];
+function setRefillDays(d, other = !DAY_OPTS.includes(d)) {
+  $('rmDays').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.days === (other ? '' : String(d))));
+  $('rmDaysN').hidden = !other; if (other) $('rmDaysN').value = d || '';
+  refillHint();
+}
+const refillDays = () => { const b = $('rmDays').querySelector('.on'); return b && b.dataset.days ? +b.dataset.days : parseInt($('rmDaysN').value) || 0; };
 function refillHint() {
   const p = getP(state.refillId); if (!p) return;
-  const d = parseISO($('rmDate').value) ? $('rmDate').value : todayISO();
-  $('rmHint').innerHTML = `Next refill will be due <b>${fmtDate(addDays(d, p.cycle))}</b> (${p.cycle}-day cycle). The amount becomes the new last-dispensed value.`;
+  const d = parseISO($('rmDate').value) ? $('rmDate').value : todayISO(), n = refillDays();
+  $('rmHint').innerHTML = n > 0 ? `Next refill will be due <b>${fmtDate(addDays(d, n))}</b> (${n} days supplied). The amount becomes the new last-dispensed value.` : 'Enter how many days of medicine were dispensed.';
 }
 // After a refill is corrected or deleted, the patient's last dispense follows the latest refill on record
 // (or, with none left, the values saved just before the first one was recorded).
@@ -1705,26 +2073,27 @@ function syncFromRefills(p, old) {
   if (!wasCurrent && !(latest && latest.date > p.lastDate)) return true;
   if (!latest && !old.prev) return false; // recorded before earlier values were kept: the user must re-enter them
   if (old.prev) p.fullRev = num(old.prev.fullRev);
-  if (latest) { p.lastDate = latest.date; p.lastRev = num(latest.amount); p.rxtype = latest.rxtype || p.rxtype; }
-  else if (old.prev) { p.lastDate = old.prev.lastDate; p.lastRev = num(old.prev.lastRev); p.rxtype = old.prev.rxtype; }
+  if (latest) { p.lastDate = latest.date; p.lastRev = num(latest.amount); p.rxtype = latest.rxtype || p.rxtype; p.cycle = parseInt(latest.days) || p.cycle; }
+  else if (old.prev) { p.lastDate = old.prev.lastDate; p.lastRev = num(old.prev.lastRev); p.rxtype = old.prev.rxtype; p.cycle = parseInt(old.prev.cycle) || p.cycle; }
   if (latest && latest.rxtype === 'full' && num(latest.amount) > p.fullRev) p.fullRev = num(latest.amount);
   return true;
 }
 function saveRefill() {
   const p = getP(state.refillId); if (!p) return;
-  const date = $('rmDate').value, amount = num($('rmAmt').value), type = $('rmType').value;
+  const date = $('rmDate').value, amount = num($('rmAmt').value), type = $('rmType').value, days = refillDays();
   if (!parseISO(date)) return toast('Enter the dispense date', 'warn');
   if (date > todayISO()) return toast('Dispense date cannot be in the future', 'warn');
   if (amount < 0) return toast('Amount cannot be negative', 'warn');
+  if (!(days >= 1 && days <= 365)) { $('rmDaysN').classList.add('bad'); return toast('Enter the days supplied (1–365)', 'warn'); }
   const idx = state.refillIdx;
   if (idx != null && p.refills[idx]) {
     const old = p.refills[idx];
-    p.refills[idx] = { ...old, date, amount, rxtype: type };
+    p.refills[idx] = { ...old, date, amount, rxtype: type, days };
     syncFromRefills(p, old);
   } else {
     if (isLost(p)) p.logs.unshift({ date: todayISO(), outcome: 'back', note: 'Refill recorded', next: '' });
-    p.refills.unshift({ date, amount, rxtype: type, prev: { lastDate: p.lastDate, lastRev: p.lastRev, rxtype: p.rxtype, fullRev: p.fullRev } });
-    p.lastDate = date; p.lastRev = amount; p.rxtype = type;
+    p.refills.unshift({ date, amount, rxtype: type, days, prev: { lastDate: p.lastDate, lastRev: p.lastRev, rxtype: p.rxtype, fullRev: p.fullRev, cycle: p.cycle } });
+    p.lastDate = date; p.lastRev = amount; p.rxtype = type; p.cycle = days;
     if (type === 'full' && amount > p.fullRev) p.fullRev = amount;
   }
   normalise(p); persist(); closeModal('rm');
@@ -2113,6 +2482,10 @@ $('navSearch').addEventListener('input', e => { setSearch(e.target.value, 'nav')
 $('ptSearch').addEventListener('input', e => { setSearch(e.target.value, 'pt'); renderPatients(); });
 $('ptType').onchange = e => { state.type = e.target.value; renderPatients(); };
 $('ptSort').onchange = e => { state.sort = e.target.value; renderPatients(); };
+['rpFrom', 'rpTo'].forEach(k => $(k).onchange = () => { if (!parseISO($('rpFrom').value) || !parseISO($('rpTo').value)) return; Object.assign(state.rep, { preset: 'custom', from: $('rpFrom').value, to: $('rpTo').value }); renderReports(); });
+[['rpType', 'type'], ['rpDays', 'days'], ['rpIns', 'ins']].forEach(([k, f]) => $(k).onchange = e => { state.rep[f] = e.target.value; renderReports(); });
+$('rpReset').onclick = () => { Object.assign(state.rep, { type: '', days: '', ins: '' }); renderReports(); };
+$('rpExport').onclick = exportReport;
 ['f_lastRev', 'f_fullRev'].forEach(k => $(k).addEventListener('input', calcForm));
 ['f_rxtype', 'f_cycle', 'f_lastDate'].forEach(k => $(k).addEventListener('change', calcForm));
 ['f_name', 'f_phone', 'f_lastDate', 'f_id'].forEach(k => $(k).addEventListener('input', () => $(k).classList.remove('bad')));
@@ -2126,6 +2499,8 @@ $('cmSave').onclick = saveCall;
 $('rmSave').onclick = saveRefill;
 $('rmDel').onclick = deleteRefill;
 $('rmDate').addEventListener('change', refillHint);
+$('rmDays').onclick = e => { const b = e.target.closest('button'); if (!b) return; const other = !b.dataset.days; setRefillDays(other ? parseInt($('rmDaysN').value) || 0 : +b.dataset.days, other); if (other) $('rmDaysN').focus(); };
+$('rmDaysN').addEventListener('input', () => { $('rmDaysN').classList.remove('bad'); refillHint(); });
 $('cfOk').onclick = () => { closeModal('cf'); if (confirmFn) confirmFn(); confirmFn = null; };
 const drop = $('drop');
 drop.onclick = () => $('fileIn').click();
@@ -2135,7 +2510,7 @@ $('fileIn').onchange = e => handleFiles(e.target.files);
 ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('drag'); }));
 drop.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
 $('restoreIn').onchange = e => { if (e.target.files[0]) restore(e.target.files[0]); };
-let rT; window.addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(() => { if (state.view === 'overview') drawDueChart(); if (state.view === 'forecast') renderForecast(); }, 150); });
+let rT; window.addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(() => { if (state.view === 'overview') drawDueChart(); if (state.view === 'forecast') renderForecast(); if (state.view === 'reports') renderReports(); }, 150); });
 let lastDay = todayISO(); setInterval(() => { if (todayISO() !== lastDay) { lastDay = todayISO(); render(); } }, 60000);
 
 // ═════════ INIT ═════════
